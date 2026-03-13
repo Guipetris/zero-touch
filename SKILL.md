@@ -9,7 +9,7 @@ description: >
   "full pipeline", "end-to-end", or wants a feature implemented from idea to committed code
   with no manual steps.
 license: Apache-2.0
-compatibility: Requires git, gh CLI (authenticated), and oh-my-claudecode (OMC) for state management
+compatibility: Requires git and gh CLI (authenticated)
 metadata:
   author: Guipetris
   version: "1.0.0"
@@ -52,22 +52,19 @@ The existing `deep-interview -> ralplan -> autopilot` pipeline chains three inde
 - Failures at any gate enter the adaptive correction chain before re-attempting or escalating
 - The only human touchpoints are Stage 0 (design conversation) and escalation gates when correction budgets are exhausted
 - Model routing: Opus (Stages 0, 2, 5), Sonnet (Stage 3), Haiku (Stages 1, 4, 6)
-- OMC state is updated on every stage transition for /cancel and HUD integration
-- Cancel with `/oh-my-claudecode:cancel` at any time; worktree slot is released, branch archived, state cleared
+- Run state is written to .zero-touch/state/run-state.json on every stage transition
+- Cancel at any time by creating `.zero-touch/CANCEL` (e.g. `touch .zero-touch/CANCEL`); worktree slot is released, branch archived, state cleared
 </Execution_Policy>
 
 <Prerequisites>
 ```
-oh-my-claudecode (OMC) must be installed. Zero-Touch uses OMC's state management tools
-  (state_write / state_read) for stage tracking, /cancel support, and HUD integration.
-  OMC must have 'zero-touch' registered as a valid state mode — see README.md for the
-  one-line registration step.
+git must be available and the project must be a git repository (or --init flag must be passed).
 
 gh CLI must be authenticated for branch protection checks and PR creation.
   Run: gh auth status
   If not authenticated, Stage 1 branch protection check falls back gracefully (warns, uses config).
 
-Git must be available and the project must be a git repository (or --init flag must be passed).
+No other external dependencies. Zero-Touch manages its own state under .zero-touch/.
 ```
 </Prerequisites>
 
@@ -88,8 +85,8 @@ Parse `{{ARGUMENTS}}` to determine invocation mode:
 - Skip Stage 0 Phase A and Phase B entirely
 - Proceed directly to Stage 1
 
-**Resume mode:** If OMC state exists for mode `zero-touch`:
-- Read state via `state_read(mode="zero-touch")`
+**Resume mode:** If `.zero-touch/state/run-state.json` exists:
+- Read state via `Read(".zero-touch/state/run-state.json")`
 - Extract `run_id` and `stage` from state
 - Read `.zero-touch/state/{run-id}/design.json` if it exists
 - Resume from the last completed stage
@@ -194,10 +191,17 @@ Generate feature slug from description: kebab-case, max 40 characters, alphanume
 Bash("mkdir -p .zero-touch/state/{run-id}/contracts")
 ```
 
-### Register with OMC
+### Initialize run state
 
 ```
-state_write(mode="zero-touch", active=true, state={"stage": 0, "run_id": "{run-id}", "phase": "A", "feature_slug": "{slug}"})
+Write(".zero-touch/state/run-state.json", {
+  "active": true,
+  "stage": 0,
+  "run_id": "{run-id}",
+  "phase": "A",
+  "feature_slug": "{slug}",
+  "started_at": "<ISO timestamp>"
+})
 ```
 
 ### Phase A: Socratic Clarity Loop
@@ -231,7 +235,7 @@ ambiguity = 1 - (goal * 0.35 + constraints * 0.25 + criteria * 0.25 + context * 
 
 > Design clarity is insufficient (ambiguity: {score}%). The pipeline requires <= 20% ambiguity to proceed. Continue the interview or provide more detail.
 
-**Translation layer:** After deep-interview completes, read its spec output from `.omc/specs/deep-interview-{slug}.md`. Extract and map to `design.json` fields:
+**Translation layer:** After deep-interview completes, read its spec output from `.omc/specs/deep-interview-{slug}.md` and copy it to `.zero-touch/state/{run-id}/interview-spec.md` for self-contained reference. Extract and map to `design.json` fields:
 
 | deep-interview spec field | design.json field |
 |---|---|
@@ -268,9 +272,16 @@ On resume: if `design.json` exists but `chosen_approach` is `null`, skip Phase A
 
 ### Phase B: Approach Design
 
-Update OMC state:
+Update run state:
 ```
-state_write(mode="zero-touch", active=true, state={"stage": 0, "run_id": "{run-id}", "phase": "B"})
+Write(".zero-touch/state/run-state.json", {
+  "active": true,
+  "stage": 0,
+  "run_id": "{run-id}",
+  "phase": "B",
+  "feature_slug": "{slug}",
+  "started_at": "<ISO timestamp>"
+})
 ```
 
 **Step 1: Opus proposes 2-3 architectural approaches.**
@@ -361,9 +372,17 @@ Write(".zero-touch/state/{run-id}/design.json", designJson)
 **Output:** Claimed worktree slot with feature branch
 **Gate:** All 7 checks must pass (warnings allowed, errors block)
 
-Update OMC state:
+Check for cancel sentinel: if `.zero-touch/CANCEL` exists, enter cancellation flow (see Cancellation section).
+
+Update run state:
 ```
-state_write(mode="zero-touch", active=true, state={"stage": 1, "run_id": "{run-id}"})
+Write(".zero-touch/state/run-state.json", {
+  "active": true,
+  "stage": 1,
+  "run_id": "{run-id}",
+  "feature_slug": "{slug}",
+  "started_at": "<ISO timestamp>"
+})
 ```
 
 ### Check 1: Git Repo Check
@@ -507,9 +526,17 @@ This creates an isolated working directory with its own feature branch.
 **Output:** `feature-plan.json` + `contracts/{unit-id}.json` for each unit
 **Gate:** All contracts pass independent Critic review
 
-Update OMC state:
+Check for cancel sentinel: if `.zero-touch/CANCEL` exists, enter cancellation flow (see Cancellation section).
+
+Update run state:
 ```
-state_write(mode="zero-touch", active=true, state={"stage": 2, "run_id": "{run-id}"})
+Write(".zero-touch/state/run-state.json", {
+  "active": true,
+  "stage": 2,
+  "run_id": "{run-id}",
+  "feature_slug": "{slug}",
+  "started_at": "<ISO timestamp>"
+})
 ```
 
 ### Opus Challenge-the-Brief Gate
@@ -668,9 +695,17 @@ Stage 3 does NOT begin until all contracts pass the Critic.
 **Output:** Implemented code on sub-branches, merged into feature branch
 **Gate:** All units pass inline contract gate + merge protocol completes
 
-Update OMC state:
+Check for cancel sentinel: if `.zero-touch/CANCEL` exists, enter cancellation flow (see Cancellation section).
+
+Update run state:
 ```
-state_write(mode="zero-touch", active=true, state={"stage": 3, "run_id": "{run-id}"})
+Write(".zero-touch/state/run-state.json", {
+  "active": true,
+  "stage": 3,
+  "run_id": "{run-id}",
+  "feature_slug": "{slug}",
+  "started_at": "<ISO timestamp>"
+})
 ```
 
 ### Branch Topology
@@ -696,7 +731,7 @@ For each unit in `feature-plan.json`, spawn a Sonnet agent via TaskCreate:
 
 ```
 TaskCreate(
-  subagent_type="oh-my-claudecode:executor",
+  subagent_type="general-purpose",
   model="sonnet",
   description="Implement unit {unit-id} per contract",
   context={
@@ -827,7 +862,7 @@ If the resolved merge still fails the contract gate, the conflicting units are r
 
 ```
 TaskCreate(
-  subagent_type="oh-my-claudecode:executor",
+  subagent_type="general-purpose",
   model="sonnet",
   description="Re-implement unit {unit-id} sequentially after merge conflict",
   context={
@@ -853,9 +888,17 @@ After all units are merged, the feature branch contains the complete implementat
 **Output:** Validation report (pass/fail per check)
 **Gate:** All validation checks pass (failures enter correction chain)
 
-Update OMC state:
+Check for cancel sentinel: if `.zero-touch/CANCEL` exists, enter cancellation flow (see Cancellation section).
+
+Update run state:
 ```
-state_write(mode="zero-touch", active=true, state={"stage": 4, "run_id": "{run-id}"})
+Write(".zero-touch/state/run-state.json", {
+  "active": true,
+  "stage": 4,
+  "run_id": "{run-id}",
+  "feature_slug": "{slug}",
+  "started_at": "<ISO timestamp>"
+})
 ```
 
 ### Step 1: Detect Package Manager
@@ -896,7 +939,7 @@ If no tests found, spawn a Sonnet agent to generate a baseline test suite coveri
 
 ```
 TaskCreate(
-  subagent_type="oh-my-claudecode:executor",
+  subagent_type="general-purpose",
   model="sonnet",
   description="Generate baseline test suite for zero-touch contracts",
   context={
@@ -985,9 +1028,17 @@ Any failure enters the Adaptive Correction System. Success gates Stage 5.
 **Output:** Verdict (APPROVE, FIX_MINOR, RE-PLAN, REJECT)
 **Gate:** Verdict must be APPROVE to proceed to Stage 6
 
-Update OMC state:
+Check for cancel sentinel: if `.zero-touch/CANCEL` exists, enter cancellation flow (see Cancellation section).
+
+Update run state:
 ```
-state_write(mode="zero-touch", active=true, state={"stage": 5, "run_id": "{run-id}"})
+Write(".zero-touch/state/run-state.json", {
+  "active": true,
+  "stage": 5,
+  "run_id": "{run-id}",
+  "feature_slug": "{slug}",
+  "started_at": "<ISO timestamp>"
+})
 ```
 
 ### Three-Lens Review
@@ -1035,7 +1086,7 @@ Opus produces a structured fix list:
 Action: Spawn Sonnet to apply fixes in the worktree:
 ```
 TaskCreate(
-  subagent_type="oh-my-claudecode:executor",
+  subagent_type="general-purpose",
   model="sonnet",
   description="Apply FIX_MINOR patches per Opus review",
   context={
@@ -1073,7 +1124,7 @@ Action:
    ```
 2. Archive the feature branch (do not delete)
 3. Release the pool slot
-4. Clear OMC state
+4. Clear run state: `Bash("rm -f .zero-touch/state/run-state.json")`
 5. Pipeline terminates. Human intervention required.
 
 > "Pipeline REJECTED at Stage 5 review. Reason: {reason}. Branch preserved at feature/zt-{run-id}-{slug} for inspection. See .zero-touch/state/{run-id}/rejection.json for details."
@@ -1087,9 +1138,17 @@ Action:
 **Output:** PR or merged commit
 **Gate:** Successful PR creation or merge
 
-Update OMC state:
+Check for cancel sentinel: if `.zero-touch/CANCEL` exists, enter cancellation flow (see Cancellation section).
+
+Update run state:
 ```
-state_write(mode="zero-touch", active=true, state={"stage": 6, "run_id": "{run-id}"})
+Write(".zero-touch/state/run-state.json", {
+  "active": true,
+  "stage": 6,
+  "run_id": "{run-id}",
+  "feature_slug": "{slug}",
+  "started_at": "<ISO timestamp>"
+})
 ```
 
 ### Read Config
@@ -1198,10 +1257,10 @@ Compile the run log:
 Write(".zero-touch/logs/{run-id}.json", runLogJson)
 ```
 
-**Step 5: Clear OMC state**
+**Step 5: Clear run state**
 
 ```
-state_clear(mode="zero-touch")
+Bash("rm -f .zero-touch/state/run-state.json")
 ```
 
 > "Zero-touch pipeline complete. {PR created at {url} | Merged to {target_branch}}. Run archived to .zero-touch/logs/{run-id}.json."
@@ -1229,7 +1288,7 @@ Takes raw failure output (test failure, lint error, contract gate failure, revie
 ```
 Step 1: Sonnet self-corrects with failure output injected
   TaskCreate(
-    subagent_type="oh-my-claudecode:executor",
+    subagent_type="general-purpose",
     model="sonnet",
     context={
       "contract": {original contract},
@@ -1251,7 +1310,7 @@ Step 2 (if still fails): Haiku re-classifies (may have been misclassified)
 ```
 Step 1: Sonnet self-corrects with contract + failure
   TaskCreate(
-    subagent_type="oh-my-claudecode:executor",
+    subagent_type="general-purpose",
     model="sonnet",
     context={
       "contract": {original contract},
@@ -1270,7 +1329,7 @@ Step 2 (if still fails): Opus diagnoses root cause, rewrites correction prompt
 
 Step 3: Sonnet retries with Opus diagnosis
   TaskCreate(
-    subagent_type="oh-my-claudecode:executor",
+    subagent_type="general-purpose",
     model="sonnet",
     context={
       "contract": {original contract},
@@ -1484,13 +1543,13 @@ Step 5: Check for available slots (claim if found)
 Step 6: If still no slot, repeat from Step 2
 ```
 
-No hard timeout on queuing. The pipeline waits indefinitely for a slot. The user can `/cancel` to exit the queue.
+No hard timeout on queuing. The pipeline waits indefinitely for a slot. The user can create `.zero-touch/CANCEL` to exit the queue.
 
 </Pool_Management>
 
 <Tool_Usage>
-- `state_write(mode="zero-touch", ...)` / `state_read(mode="zero-touch")` / `state_clear(mode="zero-touch")` -- OMC state integration for /cancel and HUD
-- `TaskCreate(subagent_type="oh-my-claudecode:executor", model="sonnet", ...)` -- spawn parallel Sonnet agents in Stage 3
+- `Write(".zero-touch/state/run-state.json", ...)` / `Read(".zero-touch/state/run-state.json")` / `Bash("rm -f .zero-touch/state/run-state.json")` -- self-contained run state for resume and cancellation
+- `TaskCreate(subagent_type="general-purpose", model="sonnet", ...)` -- spawn parallel Sonnet agents in Stage 3
 - `SendMessage(task_id, ...)` -- communicate with spawned agents if needed
 - `TaskGet(task_id)` / `TaskList()` -- monitor agent completion in Stage 3
 - `Skill("deep-interview", "{description}")` -- invoke Socratic clarity loop in Stage 0 Phase A
@@ -1507,12 +1566,12 @@ No hard timeout on queuing. The pipeline waits indefinitely for a slot. The user
 
 | Scenario | Behavior |
 |---|---|
-| Stage 0 interrupted | Resume from OMC state if run-id exists. `state_read(mode="zero-touch")` returns stage and run_id. Re-read `.zero-touch/state/{run-id}/design.json` if Phase A completed. Resume Phase B if design.json exists but no chosen_approach. |
+| Stage 0 interrupted | Resume from run-state.json if it exists. `Read(".zero-touch/state/run-state.json")` returns stage and run_id. Re-read `.zero-touch/state/{run-id}/design.json` if Phase A completed. Resume Phase B if design.json exists but no chosen_approach. |
 | Stage 3 agent crash | Heartbeat expires after 10 minutes with no update. Next `/zero-touch` invocation or stale check releases the slot with a warning. Branch is archived, not deleted. Run state preserved for debugging. |
 | Stage 6 merge fail (direct mode) | Target branch left in pre-merge state. Run logs record the failure. Manual resolution required -- no auto-rollback of a partial merge. Pool slot released. |
 | Budget exhausted | Structured escalation report written to `.zero-touch/state/{run-id}/escalation.json`. Branch preserved for manual inspection. Pool slot remains claimed. Pipeline halts with human-readable summary. |
 | Pool full (all slots claimed) | Check stale slots first (heartbeat > 10 min). If stale found, release and claim. If no stale, queue: wait 5 seconds, retry. Repeat until slot available. User can `/cancel` to exit queue. |
-| `/cancel` during any stage | Release worktree slot (set status to available). Archive feature branch. Clear OMC state. Write partial run log to `.zero-touch/logs/{run-id}.json` with `stages_completed` reflecting progress. |
+| Cancel during any stage (`.zero-touch/CANCEL` sentinel) | Release worktree slot (set status to available). Archive feature branch. Clear run state (`rm -f .zero-touch/state/run-state.json`). Write partial run log to `.zero-touch/logs/{run-id}.json` with `stages_completed` reflecting progress. Remove sentinel (`rm -f .zero-touch/CANCEL`). |
 | `gh` CLI not authenticated | Stage 1 branch protection check falls back gracefully (warns, uses config.json value). Stage 6 PR creation fails with clear error pointing to `gh auth login`. |
 | Critic pass fails 3 times | Pipeline halts at Stage 2. Contracts are fundamentally flawed. Human review of design.json and contracts required. |
 | RE-PLAN issued twice for same units | Second RE-PLAN exhausts the ARCH correction budget for those units. Escalation report produced. |
@@ -1627,13 +1686,13 @@ Why bad: LOGIC budget is 2 per unit. After attempt 1, Opus should diagnose. Afte
 - **Per-unit correction budget exhausted:** Produce escalation report. Halt pipeline for that unit.
 - **Global correction ceiling reached (3 x N units):** Produce escalation report. Halt entire pipeline.
 - **Stage 5 REJECT verdict:** Hard stop. Archive branch. Write rejection rationale.
-- **User says "stop", "cancel", "abort":** Release slot, archive branch, clear state.
+- **User says "stop", "cancel", "abort" or creates `.zero-touch/CANCEL`:** Release slot, archive branch, clear state.
 - **Stage 6 merge conflict in direct mode:** Log failure, leave target branch clean, require manual resolution.
 </Escalation_And_Stop_Conditions>
 
 <Final_Checklist>
 - [ ] Run ID generated and state directory created
-- [ ] OMC state registered with `state_write(mode="zero-touch")`
+- [ ] Run state written to .zero-touch/state/run-state.json at Stage 0 start
 - [ ] Namespace `.zero-touch/` bootstrapped (idempotent)
 - [ ] `.gitignore` updated with `.zero-touch/worktrees/` and `.zero-touch/state/`
 - [ ] Stage 0: deep-interview completed with ambiguity <= 20%
@@ -1656,7 +1715,7 @@ Why bad: LOGIC budget is 2 per unit. After attempt 1, Opus should diagnose. Afte
 - [ ] Stage 6: PR created or direct merge completed
 - [ ] Stage 6: Pool slot released
 - [ ] Stage 6: Run state archived to `.zero-touch/logs/{run-id}.json`
-- [ ] Stage 6: OMC state cleared via `state_clear(mode="zero-touch")`
+- [ ] Run state cleared (rm .zero-touch/state/run-state.json) at Stage 6 completion
 - [ ] No worktree collision with other active runs
 - [ ] Correction budgets respected (per-unit and global ceiling)
 </Final_Checklist>
@@ -1682,7 +1741,7 @@ Why bad: LOGIC budget is 2 per unit. After attempt 1, Opus should diagnose. Afte
 
 ## Resume
 
-If interrupted at any stage, re-invoke `/zero-touch` (no arguments needed). The skill reads OMC state via `state_read(mode="zero-touch")` and resumes from the last completed stage:
+If interrupted at any stage, re-invoke `/zero-touch` (no arguments needed). The skill reads `.zero-touch/state/run-state.json` and resumes from the last completed stage:
 
 | Interrupted At | Resume Behavior |
 |---|---|
@@ -1712,28 +1771,32 @@ If interrupted at any stage, re-invoke `/zero-touch` (no arguments needed). The 
 | Correction: Self-correct | Sonnet | Code fixes per guidance |
 | Correction: Diagnose | Opus | Root cause analysis for LOGIC and ARCH failures |
 
-## OMC State Integration
+## State Management
 
-The pipeline registers with OMC's state system for `/cancel` and HUD support:
+Zero-Touch manages its own state under `.zero-touch/state/run-state.json`. No external dependencies.
 
-```
--- On pipeline start (Stage 0):
-state_write(mode="zero-touch", active=true, state={"stage": 0, "run_id": "zt-...", "phase": "A"})
-
--- On each stage transition:
-state_write(mode="zero-touch", active=true, state={"stage": N, "run_id": "zt-..."})
-
--- On pipeline completion (Stage 6):
-state_clear(mode="zero-touch")
-
--- On /cancel:
-state_clear(mode="zero-touch")
-
--- On resume:
-state_read(mode="zero-touch")  -- returns {stage, run_id} or null
+**Schema:**
+```json
+{
+  "active": true,
+  "stage": 0,
+  "run_id": "zt-a3f2c1d9",
+  "phase": "A",
+  "feature_slug": "stripe-webhook-handler",
+  "started_at": "2026-03-13T10:00:00Z"
+}
 ```
 
-**Scope clarification:** `.zero-touch/` stores all pipeline-specific artifacts (contracts, feature plans, logs). OMC state stores only the active/phase signal needed for `/cancel` and HUD. The two systems do not overlap.
+**Lifecycle:**
+- Written at Stage 0 start
+- Updated on every stage transition (stage number incremented)
+- Cleared (file deleted) at Stage 6 completion or on cancellation
+
+**Cancellation sentinel:** Create `.zero-touch/CANCEL` to request cancellation. The pipeline checks for this file at the start of each stage and enters the cancellation flow if found.
+
+**Resume:** On `/zero-touch` invocation with no arguments, if `run-state.json` exists, read it to determine `run_id` and `stage`, then resume from the appropriate stage.
+
+**Scope clarification:** `.zero-touch/state/run-state.json` stores the active/phase signal needed for resume and cancellation.
 
 ## Ticket-Driven Mode
 
@@ -1799,19 +1862,22 @@ Before each correction attempt:
 
 ## Pipeline Cancellation
 
-When `/oh-my-claudecode:cancel` is invoked during an active zero-touch run:
+Create `.zero-touch/CANCEL` to cancel the active run (e.g. `touch .zero-touch/CANCEL`). The pipeline checks for this sentinel at the start of each stage (1 through 6). When detected:
 
 ```
-Step 1: Read OMC state to get run_id and current stage
-Step 2: If Stage 3 (agents running), wait for current agent operations to complete or timeout (30s)
-Step 3: Archive the feature branch:
-          git branch -m feature/zt-{run-id}-{slug} archived/zt-{run-id}-{slug}
-Step 4: Remove the worktree:
+Step 1: Read .zero-touch/state/run-state.json to get run_id and current stage
+Step 2: Remove agent sub-worktrees for current stage (if Stage 3):
+          git worktree list --porcelain | grep '.zero-touch/worktrees/{slot-id}/agents' | awk '/worktree/{print $2}' | xargs -r -I{} git worktree remove {} --force
+Step 3: Remove feature worktree:
           git worktree remove .zero-touch/worktrees/{slot-id} --force
-Step 5: Release pool slot (set status to available, null all fields)
-Step 6: Write partial run log with stages_completed
-Step 7: Clear OMC state:
-          state_clear(mode="zero-touch")
+Step 4: Delete feature branch:
+          git branch -D zt/{feature-slug}/{run-id}
+Step 5: Release pool slot (set status back to "available" in pool.json)
+Step 6: Write partial run log to .zero-touch/logs/{run-id}.json
+Step 7: Clear run state:
+          Bash("rm -f .zero-touch/state/run-state.json")
+Step 8: Remove sentinel:
+          Bash("rm -f .zero-touch/CANCEL")
 ```
 
 </Advanced>
