@@ -5,8 +5,8 @@
 A Claude Code skill that drives a 7-stage autonomous pipeline with Opus oversight at every architectural gate, parallel Sonnet agents implementing against Opus-authored contracts, and a self-correcting retry loop that classifies failures before escalating to you.
 
 ```bash
-/zero-touch "add stripe webhook handler"
-/zero-touch --ticket GH-142
+/the-shaman-pipe "add stripe webhook handler"
+/the-shaman-pipe --ticket GH-142
 ```
 
 ## How It Works
@@ -46,14 +46,14 @@ Per-unit budgets prevent infinite loops. When budgets exhaust, the pipeline surf
 
 ## Git Worktree Isolation
 
-Each feature runs in its own git worktree at `.zero-touch/worktrees/{slot}/`. Multiple features can run simultaneously in separate terminal sessions without branch conflicts. Worktrees are cleaned up automatically after commit or cancellation.
+Each feature runs in its own git worktree at `.shaman-pipe/worktrees/{slot}/`. Multiple features can run simultaneously in separate terminal sessions without branch conflicts. Worktrees are cleaned up automatically after commit or cancellation.
 
 ## State Management
 
-Zero-Touch is fully self-contained. All state lives under `.zero-touch/` in your project:
+The Shaman Pipe is fully self-contained. All state lives under `.shaman-pipe/` in your project:
 
 ```
-.zero-touch/
+.shaman-pipe/
 ├── config.json                         # Project delivery config (PR vs direct merge)
 ├── worktrees/
 │   ├── pool.json                       # Slot pool for concurrent features
@@ -88,7 +88,7 @@ That's it.
 npx skills add Guipetris/the-shaman-pipe
 
 # Or manually
-cp SKILL.md ~/.claude/skills/zero-touch/SKILL.md
+cp SKILL.md ~/.claude/skills/the-shaman-pipe/SKILL.md
 ```
 
 ## Flags
@@ -101,10 +101,10 @@ cp SKILL.md ~/.claude/skills/zero-touch/SKILL.md
 
 ## Cancellation
 
-Create `.zero-touch/CANCEL` at any time to cancel the active pipeline:
+Create `.shaman-pipe/CANCEL` at any time to cancel the active pipeline:
 
 ```bash
-touch .zero-touch/CANCEL
+touch .shaman-pipe/CANCEL
 ```
 
 The pipeline checks for the sentinel at the start of each stage, releases the worktree slot, archives the branch, and cleans up state.
@@ -122,14 +122,14 @@ At each checkpoint you get three options:
 | Option | Effect |
 |---|---|
 | Proceed to Stage N | Continue pipeline normally |
-| Pause — resume later | Halt gracefully; resume with `/zero-touch --resume {run-id}` |
-| Cancel pipeline | Same as `.zero-touch/CANCEL` — clean teardown |
+| Pause — resume later | Halt gracefully; resume with `/the-shaman-pipe --resume {run-id}` |
+| Cancel pipeline | Same as `.shaman-pipe/CANCEL` — clean teardown |
 
 Checkpoints are designed for developers who want to inspect the Opus-authored contracts before implementation, or review the validation report before triggering the security review. The pipeline is fully autonomous by default — checkpoints are opt-in.
 
 ## Configuration
 
-On first run, Zero-Touch asks three questions and writes answers to `.zero-touch/config.json`:
+On first run, The Shaman Pipe asks three questions and writes answers to `.shaman-pipe/config.json`:
 
 - **Delivery mode**: PR to target branch (recommended) or direct merge
 - **Target branch**: auto-detected (main/master) or specify
@@ -140,7 +140,7 @@ Config is project-local and added to `.gitignore` automatically.
 ## Ticket-Driven Mode
 
 ```bash
-/zero-touch --ticket GH-142
+/the-shaman-pipe --ticket GH-142
 ```
 
 Fetches the issue title, body, and labels via `gh issue view`, synthesizes `design.json` automatically, and skips Stage 0 entirely — straight to environment check and planning.

@@ -1,11 +1,11 @@
 ---
-name: zero-touch
+name: the-shaman-pipe
 description: >
   Single-command pipeline from idea to committed code. Runs a 7-stage fully autonomous workflow:
   Opus-driven design (Socratic clarity interview + approach selection), Opus planning, parallel
   Sonnet implementation against Opus-authored contracts, Haiku validation, Opus security review,
   and Haiku commit — with git worktree isolation and a self-correcting retry loop that classifies
-  failures before escalating. Use when the user says "zero-touch", "zero touch", "zt",
+  failures before escalating. Use when the user says "the-shaman-pipe", "shaman pipe", "tsp",
   "full pipeline", "end-to-end", or wants a feature implemented from idea to committed code
   with no manual steps.
 license: Apache-2.0
@@ -16,17 +16,17 @@ metadata:
 ---
 
 <Purpose>
-Zero-Touch Pipeline takes a single command and autonomously produces committed code through seven sequential, gated stages. Opus owns all design, planning, and review decisions. Sonnet agents implement in parallel against Opus-authored contracts. Haiku handles mechanical validation and environment checks. Every failure routes to an adaptive correction chain with per-unit budgets before escalating to a human. Git worktree isolation enables multiple features to run simultaneously without session collision.
+The Shaman Pipe takes a single command and autonomously produces committed code through seven sequential, gated stages. Opus owns all design, planning, and review decisions. Sonnet agents implement in parallel against Opus-authored contracts. Haiku handles mechanical validation and environment checks. Every failure routes to an adaptive correction chain with per-unit budgets before escalating to a human. Git worktree isolation enables multiple features to run simultaneously without session collision.
 
 ```
-/zero-touch "add stripe webhook handler"
-/zero-touch --ticket GH-142
+/the-shaman-pipe "add stripe webhook handler"
+/the-shaman-pipe --ticket GH-142
 ```
 </Purpose>
 
 <Use_When>
 - User wants a complete feature implemented end-to-end from a brief description
-- User says "zero-touch", "zero touch", "zt", or "full pipeline"
+- User says "the-shaman-pipe", "shaman pipe", "tsp", or "full pipeline"
 - Feature requires multiple files, coordinated design, and validation
 - User wants contract-enforced implementation with Opus oversight at every gate
 - User wants parallel feature development with worktree isolation
@@ -43,7 +43,7 @@ Zero-Touch Pipeline takes a single command and autonomously produces committed c
 </Do_Not_Use_When>
 
 <Why_This_Exists>
-The existing `deep-interview -> ralplan -> autopilot` pipeline chains three independent skills with manual handoffs between them. Zero-Touch replaces manual handoffs with gated stages, adds contract-per-unit enforcement so Sonnet agents cannot deviate from Opus's design, introduces worktree-based isolation for concurrent features, and includes a surgical correction system that classifies failures and applies the minimum intervention needed. The result is a single command that produces committed code with architectural integrity enforced at every boundary.
+The existing `deep-interview -> ralplan -> autopilot` pipeline chains three independent skills with manual handoffs between them. The Shaman Pipe replaces manual handoffs with gated stages, adds contract-per-unit enforcement so Sonnet agents cannot deviate from Opus's design, introduces worktree-based isolation for concurrent features, and includes a surgical correction system that classifies failures and applies the minimum intervention needed. The result is a single command that produces committed code with architectural integrity enforced at every boundary.
 </Why_This_Exists>
 
 <Execution_Policy>
@@ -53,8 +53,8 @@ The existing `deep-interview -> ralplan -> autopilot` pipeline chains three inde
 - The only required human touchpoints are Stage 0 (design conversation) and escalation gates when correction budgets are exhausted
 - Optional checkpoint stops between stages can be enabled via `config.json.checkpoint_mode`; when active, the pipeline pauses at each stage boundary for user review before proceeding
 - Model routing: Opus (Stages 0, 2, 5), Sonnet (Stage 3), Haiku (Stages 1, 4, 6)
-- Run state is written to .zero-touch/state/run-state.json on every stage transition
-- Cancel at any time by creating `.zero-touch/CANCEL` (e.g. `touch .zero-touch/CANCEL`); worktree slot is released, branch archived, state cleared
+- Run state is written to .shaman-pipe/state/run-state.json on every stage transition
+- Cancel at any time by creating `.shaman-pipe/CANCEL` (e.g. `touch .shaman-pipe/CANCEL`); worktree slot is released, branch archived, state cleared
 </Execution_Policy>
 
 <Prerequisites>
@@ -65,7 +65,7 @@ gh CLI must be authenticated for branch protection checks and PR creation.
   Run: gh auth status
   If not authenticated, Stage 1 branch protection check falls back gracefully (warns, uses config).
 
-No other external dependencies. Zero-Touch manages its own state under .zero-touch/.
+No other external dependencies. The Shaman Pipe manages its own state under .shaman-pipe/.
 ```
 </Prerequisites>
 
@@ -75,10 +75,10 @@ No other external dependencies. Zero-Touch manages its own state under .zero-tou
 
 Parse `{{ARGUMENTS}}` to determine invocation mode:
 
-**Interactive mode:** `/zero-touch "feature description"`
+**Interactive mode:** `/the-shaman-pipe "feature description"`
 - Proceeds to Stage 0 Phase A (Socratic clarity loop)
 
-**Ticket mode:** `/zero-touch --ticket {id}`
+**Ticket mode:** `/the-shaman-pipe --ticket {id}`
 - Strip any `GH-` or `gh-` prefix from `{id}` before calling the API (e.g. `GH-142` → `142`)
 - Fetch ticket via `gh issue view {id} --json title,body,labels`
 - Synthesize `design.json` automatically from ticket title, body, and acceptance criteria
@@ -86,10 +86,10 @@ Parse `{{ARGUMENTS}}` to determine invocation mode:
 - Skip Stage 0 Phase A and Phase B entirely
 - Proceed directly to Stage 1
 
-**Resume mode:** If `.zero-touch/state/run-state.json` exists:
-- Read state via `Read(".zero-touch/state/run-state.json")`
+**Resume mode:** If `.shaman-pipe/state/run-state.json` exists:
+- Read state via `Read(".shaman-pipe/state/run-state.json")`
 - Extract `run_id` and `stage` from state
-- Read `.zero-touch/state/{run-id}/design.json` if it exists
+- Read `.shaman-pipe/state/{run-id}/design.json` if it exists
 - Resume from the last completed stage
 
 **Flags:**
@@ -101,14 +101,14 @@ Parse `{{ARGUMENTS}}` to determine invocation mode:
 
 ## Namespace Bootstrap (run once, idempotent)
 
-Before any stage executes, ensure the `.zero-touch/` namespace exists. This is idempotent -- safe to run on every invocation.
+Before any stage executes, ensure the `.shaman-pipe/` namespace exists. This is idempotent -- safe to run on every invocation.
 
-**Step 1:** Check if `.zero-touch/` directory exists at the project root.
+**Step 1:** Check if `.shaman-pipe/` directory exists at the project root.
 
 **Step 2:** If it does not exist, create the full directory tree:
 
 ```
-Bash("mkdir -p .zero-touch/worktrees .zero-touch/state .zero-touch/logs")
+Bash("mkdir -p .shaman-pipe/worktrees .shaman-pipe/state .shaman-pipe/logs")
 ```
 
 **Step 3:** Write `config.json` with defaults if it does not exist:
@@ -128,7 +128,7 @@ Bash("mkdir -p .zero-touch/worktrees .zero-touch/state .zero-touch/logs")
 Auto-detect target branch: check if `main` exists (`git branch --list main`), fall back to `master`, fall back to current branch.
 
 ```
-Write(".zero-touch/config.json", configJson)
+Write(".shaman-pipe/config.json", configJson)
 ```
 
 **Step 4:** Write `pool.json` with available slots if it does not exist. Read `pool_size` from `config.json` (default 3) to determine slot count:
@@ -154,16 +154,16 @@ Example with default pool_size of 3:
 ```
 
 ```
-Write(".zero-touch/worktrees/pool.json", poolJson)
+Write(".shaman-pipe/worktrees/pool.json", poolJson)
 ```
 
 **Step 5:** Update `.gitignore` to exclude worktrees and state:
 
 ```
-Bash("grep -q '.zero-touch/worktrees/' .gitignore 2>/dev/null || printf '\n# Zero-Touch Pipeline\n.zero-touch/worktrees/\n.zero-touch/state/\n' >> .gitignore")
+Bash("grep -q '.shaman-pipe/worktrees/' .gitignore 2>/dev/null || printf '\n# The Shaman Pipe\n.shaman-pipe/worktrees/\n.shaman-pipe/state/\n' >> .gitignore")
 ```
 
-Only `.zero-touch/worktrees/` and `.zero-touch/state/` are excluded. `config.json` and `logs/` can be committed.
+Only `.shaman-pipe/worktrees/` and `.shaman-pipe/state/` are excluded. `config.json` and `logs/` can be committed.
 
 ---
 
@@ -171,18 +171,18 @@ Only `.zero-touch/worktrees/` and `.zero-touch/state/` are excluded. `config.jso
 
 **Model:** Opus
 **Input:** User's feature description or ticket data
-**Output:** `.zero-touch/state/{run-id}/design.json`
+**Output:** `.shaman-pipe/state/{run-id}/design.json`
 **Gate:** Ambiguity score must be <= 20%
 
 ### Generate Run ID
 
 ```
-run_id = "zt-" + first 8 characters of a UUID
+run_id = "sp-" + first 8 characters of a UUID
 ```
 
 Generate via:
 ```
-Bash("python3 -c \"import uuid; print('zt-' + uuid.uuid4().hex[:8])\"")
+Bash("python3 -c \"import uuid; print('sp-' + uuid.uuid4().hex[:8])\"")
 ```
 
 Generate feature slug from description: kebab-case, max 40 characters, alphanumeric and hyphens only.
@@ -190,13 +190,13 @@ Generate feature slug from description: kebab-case, max 40 characters, alphanume
 ### Create Run State Directory
 
 ```
-Bash("mkdir -p .zero-touch/state/{run-id}/contracts")
+Bash("mkdir -p .shaman-pipe/state/{run-id}/contracts")
 ```
 
 ### Initialize run state
 
 ```
-Write(".zero-touch/state/run-state.json", {
+Write(".shaman-pipe/state/run-state.json", {
   "active": true,
   "stage": 0,
   "run_id": "{run-id}",
@@ -208,7 +208,7 @@ Write(".zero-touch/state/run-state.json", {
 
 ### Phase A: Socratic Clarity Loop
 
-Zero-Touch implements Socratic questioning directly — no external skill required.
+The Shaman Pipe implements Socratic questioning directly — no external skill required.
 
 #### Step 1: Detect Project Type
 
@@ -239,7 +239,7 @@ Store the result as `codebase_context` for use in question generation.
 
 #### Step 2: Initialize Interview State
 
-Write interview state to `.zero-touch/state/{run-id}/interview-state.json`:
+Write interview state to `.shaman-pipe/state/{run-id}/interview-state.json`:
 
 ```json
 {
@@ -367,7 +367,7 @@ Append the round to `interview-state.json`:
 }
 ```
 
-Write updated state: `Write(".zero-touch/state/{run-id}/interview-state.json", updatedState)`
+Write updated state: `Write(".shaman-pipe/state/{run-id}/interview-state.json", updatedState)`
 
 **4f. Check soft limits.**
 
@@ -387,7 +387,7 @@ Options: `["Yes, proceed to approach design", "Ask 2-3 more questions", "Cancel"
 
 #### Step 5: Crystallize Interview Spec
 
-When ambiguity ≤ 20% (or early exit accepted), use Opus to generate the spec and write to `.zero-touch/state/{run-id}/interview-spec.md`:
+When ambiguity ≤ 20% (or early exit accepted), use Opus to generate the spec and write to `.shaman-pipe/state/{run-id}/interview-spec.md`:
 
 ```markdown
 # Interview Spec: {feature-slug}
@@ -423,7 +423,7 @@ When ambiguity ≤ 20% (or early exit accepted), use Opus to generate the spec a
 {greenfield: technology constraints}
 ```
 
-Write: `Write(".zero-touch/state/{run-id}/interview-spec.md", specContent)`
+Write: `Write(".shaman-pipe/state/{run-id}/interview-spec.md", specContent)`
 
 #### Step 6: Translation Layer
 
@@ -457,7 +457,7 @@ Extract fields from the interview spec and map to `design.json` fields:
 ```
 
 ```
-Write(".zero-touch/state/{run-id}/design.json", partialDesignJson)
+Write(".shaman-pipe/state/{run-id}/design.json", partialDesignJson)
 ```
 
 On resume: if `design.json` exists but `chosen_approach` is `null`, skip Phase A and re-enter Phase B to re-present approaches to the user.
@@ -466,7 +466,7 @@ On resume: if `design.json` exists but `chosen_approach` is `null`, skip Phase A
 
 Update run state:
 ```
-Write(".zero-touch/state/run-state.json", {
+Write(".shaman-pipe/state/run-state.json", {
   "active": true,
   "stage": 0,
   "run_id": "{run-id}",
@@ -508,7 +508,7 @@ Which approach should I implement?
 
 Options: `["Approach 1: {name}", "Approach 2: {name}", "Approach 3: {name}"]`
 
-**Step 2: First-run config questions (only if `.zero-touch/config.json` still has defaults).**
+**Step 2: First-run config questions (only if `.shaman-pipe/config.json` still has defaults).**
 
 If this is the first run (config has not been user-confirmed), ask three questions:
 
@@ -531,15 +531,15 @@ Would you like checkpoint stops between stages?
 With checkpoints ON, the pipeline pauses after each stage and shows you what was built
 before asking whether to proceed. Useful if you want to review the plan, contracts, or
 implementation before they become irreversible. You can still cancel at any time via
-`touch .zero-touch/CANCEL` regardless of this setting.
+`touch .shaman-pipe/CANCEL` regardless of this setting.
 ```
 Options: `["No — run fully autonomous (recommended)", "Yes — pause between each stage for review"]`
 
-Persist answers to `.zero-touch/config.json`:
+Persist answers to `.shaman-pipe/config.json`:
 ```
-Read(".zero-touch/config.json")
-Edit(".zero-touch/config.json", old_delivery_mode, new_delivery_mode)
-Edit(".zero-touch/config.json", "\"checkpoint_mode\": false", "\"checkpoint_mode\": {true|false per answer}")
+Read(".shaman-pipe/config.json")
+Edit(".shaman-pipe/config.json", old_delivery_mode, new_delivery_mode)
+Edit(".shaman-pipe/config.json", "\"checkpoint_mode\": false", "\"checkpoint_mode\": {true|false per answer}")
 ```
 
 ### Write design.json
@@ -548,7 +548,7 @@ After Phase A translation and Phase B selection, write the complete `design.json
 
 ```json
 {
-  "run_id": "zt-a3f2c1d9",
+  "run_id": "sp-a3f2c1d9",
   "feature_slug": "stripe-webhook-handler",
   "ambiguity_score": 0.14,
   "goals": ["validate stripe signature", "persist webhook event", "return 200"],
@@ -564,7 +564,7 @@ After Phase A translation and Phase B selection, write the complete `design.json
 ```
 
 ```
-Write(".zero-touch/state/{run-id}/design.json", designJson)
+Write(".shaman-pipe/state/{run-id}/design.json", designJson)
 ```
 
 ---
@@ -576,12 +576,12 @@ Write(".zero-touch/state/{run-id}/design.json", designJson)
 **Output:** Claimed worktree slot with feature branch
 **Gate:** All 7 checks must pass (warnings allowed, errors block)
 
-Check for cancel sentinel: if `.zero-touch/CANCEL` exists, enter cancellation flow (see Cancellation section).
+Check for cancel sentinel: if `.shaman-pipe/CANCEL` exists, enter cancellation flow (see Cancellation section).
 If `config.checkpoint_mode` is `true`, run the Stage 0→1 checkpoint (see Checkpoint Gate section).
 
 Update run state:
 ```
-Write(".zero-touch/state/run-state.json", {
+Write(".shaman-pipe/state/run-state.json", {
   "active": true,
   "stage": 1,
   "run_id": "{run-id}",
@@ -609,10 +609,10 @@ Bash("test -d .git && echo 'OK' || echo 'NO_GIT'")
 
 ### Check 2: Worktree Pool Bootstrap
 
-Verify `.zero-touch/` namespace exists. If not, run the Namespace Bootstrap section above. If `pool.json` exists, verify slot integrity:
+Verify `.shaman-pipe/` namespace exists. If not, run the Namespace Bootstrap section above. If `pool.json` exists, verify slot integrity:
 
 ```
-Read(".zero-touch/worktrees/pool.json")
+Read(".shaman-pipe/worktrees/pool.json")
 ```
 
 Validate: all slots have required fields (`id`, `status`, `run_id`, `branch`, `claimed_at`, `last_heartbeat`). If corrupted, regenerate with defaults.
@@ -638,19 +638,19 @@ Bash("git status --porcelain")
 ```
 
 - If output is non-empty: **ERROR**. Stop pipeline.
-  > "Uncommitted changes detected. Commit or stash changes before running zero-touch."
+  > "Uncommitted changes detected. Commit or stash changes before running the-shaman-pipe."
 
 ### Check 5: Conflict Scan
 
 Read active worktrees from `pool.json`. For each claimed slot, compare its `design.json` scope against the current run's scope:
 
 ```
-Read(".zero-touch/worktrees/pool.json")
+Read(".shaman-pipe/worktrees/pool.json")
 ```
 
 For each claimed slot with a `run_id`:
 ```
-Read(".zero-touch/state/{other-run-id}/design.json")
+Read(".shaman-pipe/state/{other-run-id}/design.json")
 ```
 
 Compare `scope[]` arrays for directory-level overlap. If overlap detected: **WARN** (do not block).
@@ -675,7 +675,7 @@ If significant overlap detected: **WARN** (do not block).
 
 Step 1: Read current pool state:
 ```
-Read(".zero-touch/worktrees/pool.json")
+Read(".shaman-pipe/worktrees/pool.json")
 ```
 
 Step 2: Find first slot with `status: "available"`.
@@ -697,7 +697,7 @@ Then retry from Step 1. Do not fail.
 
 Step 5: Atomic claim via temp file + rename:
 ```
-Bash("cat > .zero-touch/worktrees/pool.{pid}.tmp << 'POOL_EOF'\n{updated pool.json with slot claimed}\nPOOL_EOF\nmv .zero-touch/worktrees/pool.{pid}.tmp .zero-touch/worktrees/pool.json")
+Bash("cat > .shaman-pipe/worktrees/pool.{pid}.tmp << 'POOL_EOF'\n{updated pool.json with slot claimed}\nPOOL_EOF\nmv .shaman-pipe/worktrees/pool.{pid}.tmp .shaman-pipe/worktrees/pool.json")
 ```
 
 The claimed slot should contain:
@@ -705,8 +705,8 @@ The claimed slot should contain:
 {
   "id": "feature-{N}",
   "status": "claimed",
-  "run_id": "zt-a3f2c1d9",
-  "branch": "feature/zt-a3f2c1d9-stripe-webhook-handler",
+  "run_id": "sp-a3f2c1d9",
+  "branch": "feature/sp-a3f2c1d9-stripe-webhook-handler",
   "claimed_at": "2026-03-13T10:00:00Z",
   "last_heartbeat": "2026-03-13T10:00:00Z"
 }
@@ -717,7 +717,7 @@ The claimed slot should contain:
 After all checks pass:
 
 ```
-Bash("git worktree add .zero-touch/worktrees/{slot-id} -b feature/zt-{run-id}-{feature-slug}")
+Bash("git worktree add .shaman-pipe/worktrees/{slot-id} -b feature/sp-{run-id}-{feature-slug}")
 ```
 
 This creates an isolated working directory with its own feature branch.
@@ -731,12 +731,12 @@ This creates an isolated working directory with its own feature branch.
 **Output:** `feature-plan.json` + `contracts/{unit-id}.json` for each unit
 **Gate:** All contracts pass independent Critic review
 
-Check for cancel sentinel: if `.zero-touch/CANCEL` exists, enter cancellation flow (see Cancellation section).
+Check for cancel sentinel: if `.shaman-pipe/CANCEL` exists, enter cancellation flow (see Cancellation section).
 If `config.checkpoint_mode` is `true`, run the Stage 1→2 checkpoint (see Checkpoint Gate section).
 
 Update run state:
 ```
-Write(".zero-touch/state/run-state.json", {
+Write(".shaman-pipe/state/run-state.json", {
   "active": true,
   "stage": 2,
   "run_id": "{run-id}",
@@ -751,7 +751,7 @@ Before generating any contracts, Opus evaluates `design.json` for soundness:
 
 Read the design:
 ```
-Read(".zero-touch/state/{run-id}/design.json")
+Read(".shaman-pipe/state/{run-id}/design.json")
 ```
 
 Explore the codebase within the declared scope:
@@ -784,7 +784,7 @@ Opus reads `design.json` and the full codebase context within scope, then produc
 
 ```json
 {
-  "run_id": "zt-a3f2c1d9",
+  "run_id": "sp-a3f2c1d9",
   "units": [
     {
       "unit_id": "unit-event-schema",
@@ -810,7 +810,7 @@ Opus reads `design.json` and the full codebase context within scope, then produc
 - `parallelism` should not exceed the number of independent units (units with no unresolved dependencies)
 
 ```
-Write(".zero-touch/state/{run-id}/feature-plan.json", featurePlanJson)
+Write(".shaman-pipe/state/{run-id}/feature-plan.json", featurePlanJson)
 ```
 
 ### Generate Contract Set
@@ -844,7 +844,7 @@ One contract per unit. Each contract is Opus's design decision -- not a transcri
 
 Write each contract:
 ```
-Write(".zero-touch/state/{run-id}/contracts/{unit-id}.json", contractJson)
+Write(".shaman-pipe/state/{run-id}/contracts/{unit-id}.json", contractJson)
 ```
 
 ### Opus's Explicit Powers in Stage 2
@@ -901,12 +901,12 @@ Stage 3 does NOT begin until all contracts pass the Critic.
 **Output:** Implemented code on sub-branches, merged into feature branch
 **Gate:** All units pass inline contract gate + merge protocol completes
 
-Check for cancel sentinel: if `.zero-touch/CANCEL` exists, enter cancellation flow (see Cancellation section).
+Check for cancel sentinel: if `.shaman-pipe/CANCEL` exists, enter cancellation flow (see Cancellation section).
 If `config.checkpoint_mode` is `true`, run the Stage 2→3 checkpoint (see Checkpoint Gate section).
 
 Update run state:
 ```
-Write(".zero-touch/state/run-state.json", {
+Write(".shaman-pipe/state/run-state.json", {
   "active": true,
   "stage": 3,
   "run_id": "{run-id}",
@@ -919,13 +919,13 @@ Write(".zero-touch/state/run-state.json", {
 
 ```
 main
- +-- feature/zt-{run-id}-{slug}                         <-- main feature branch
-      (lives in .zero-touch/worktrees/{slot-id}/)
+ +-- feature/sp-{run-id}-{slug}                         <-- main feature branch
+      (lives in .shaman-pipe/worktrees/{slot-id}/)
       |
       +-- feature/{run-id}/unit-{unit-id-1}              <-- agent sub-branch
-          (.zero-touch/worktrees/{slot-id}/agents/{unit-id-1}/)
+          (.shaman-pipe/worktrees/{slot-id}/agents/{unit-id-1}/)
       +-- feature/{run-id}/unit-{unit-id-2}              <-- agent sub-branch
-          (.zero-touch/worktrees/{slot-id}/agents/{unit-id-2}/)
+          (.shaman-pipe/worktrees/{slot-id}/agents/{unit-id-2}/)
 ```
 
 **IMPORTANT:** Git does not allow multiple branches checked out simultaneously in a single worktree folder. Parallel agents MUST each have their own worktree path. Each agent sub-branch is created via `git worktree add` into a dedicated subfolder, not `git checkout -b` in the shared slot folder. After merge, agent sub-worktrees are removed.
@@ -944,7 +944,7 @@ TaskCreate(
   context={
     "contract": {contract JSON},
     "codebase_files": {content of files listed in contract.files + dependency contract files},
-    "worktree_path": ".zero-touch/worktrees/{slot-id}",
+    "worktree_path": ".shaman-pipe/worktrees/{slot-id}",
     "run_id": "{run-id}",
     "unit_id": "{unit-id}"
   }
@@ -954,7 +954,7 @@ TaskCreate(
 **Before spawning agents, create sub-worktrees for each unit:**
 
 ```
-Bash("git worktree add .zero-touch/worktrees/{slot-id}/agents/{unit-id} -b feature/{run-id}/unit-{unit-id} feature/zt-{run-id}-{slug}")
+Bash("git worktree add .shaman-pipe/worktrees/{slot-id}/agents/{unit-id} -b feature/{run-id}/unit-{unit-id} feature/sp-{run-id}-{slug}")
 ```
 
 Each agent gets a fully isolated working directory. The sub-branch is created off the feature branch HEAD at Stage 3 start.
@@ -962,14 +962,14 @@ Each agent gets a fully isolated working directory. The sub-branch is created of
 **Agent instructions (injected into each TaskCreate):**
 
 ```
-You are implementing unit "{unit-id}" for zero-touch run "{run-id}".
+You are implementing unit "{unit-id}" for the-shaman-pipe run "{run-id}".
 
 Your contract:
 {contract JSON}
 
 Instructions:
 1. Your isolated worktree is at: {agent_worktree_path}
-   (.zero-touch/worktrees/{slot-id}/agents/{unit-id}/)
+   (.shaman-pipe/worktrees/{slot-id}/agents/{unit-id}/)
 2. All your work happens in this directory -- do NOT navigate outside it
 3. Implement the files listed in your contract
 4. Your implementation MUST match:
@@ -1008,7 +1008,7 @@ Verify declared side effects are present (e.g., DB operations, API calls).
 
 **Step 4: Restricted files check**
 ```
-Bash("cd .zero-touch/worktrees/{slot-id}/agents/{unit-id} && git diff HEAD --name-only")
+Bash("cd .shaman-pipe/worktrees/{slot-id}/agents/{unit-id} && git diff HEAD --name-only")
 ```
 Verify no file in `contract.restricted_from` appears in the diff.
 
@@ -1019,11 +1019,11 @@ If any check fails: enter the Adaptive Correction System (see below) for this un
 Update the pool slot heartbeat every 5 minutes during **all stages that hold a slot (Stages 1–6)**. Update at each stage transition and periodically during long-running stages (Stage 3 implementation, Stage 4 validation, Stage 5 review).
 
 ```
-Read(".zero-touch/worktrees/pool.json")
+Read(".shaman-pipe/worktrees/pool.json")
 ```
 Update the claimed slot's `last_heartbeat` to current ISO timestamp.
 ```
-Write(".zero-touch/worktrees/pool.json", updatedPoolJson) -- via atomic temp+rename
+Write(".shaman-pipe/worktrees/pool.json", updatedPoolJson) -- via atomic temp+rename
 ```
 
 A slot with no heartbeat update for 10 minutes is considered stale and may be reclaimed by another invocation.
@@ -1036,7 +1036,7 @@ Once ALL agents report done and pass their contract gates, a dedicated merge seq
 
 **Step 1: Merge sub-branch into feature branch**
 ```
-Bash("cd {worktree_path} && git checkout feature/zt-{run-id}-{slug} && git merge feature/{run-id}/unit-{unit-id} --no-ff -m 'merge: unit-{unit-id} into feature branch'")
+Bash("cd {worktree_path} && git checkout feature/sp-{run-id}-{slug} && git merge feature/{run-id}/unit-{unit-id} --no-ff -m 'merge: unit-{unit-id} into feature branch'")
 ```
 
 **Step 2: Re-run contract gate on merged result**
@@ -1095,12 +1095,12 @@ After all units are merged, the feature branch contains the complete implementat
 **Output:** Validation report (pass/fail per check)
 **Gate:** All validation checks pass (failures enter correction chain)
 
-Check for cancel sentinel: if `.zero-touch/CANCEL` exists, enter cancellation flow (see Cancellation section).
+Check for cancel sentinel: if `.shaman-pipe/CANCEL` exists, enter cancellation flow (see Cancellation section).
 If `config.checkpoint_mode` is `true`, run the Stage 3→4 checkpoint (see Checkpoint Gate section).
 
 Update run state:
 ```
-Write(".zero-touch/state/run-state.json", {
+Write(".shaman-pipe/state/run-state.json", {
   "active": true,
   "stage": 4,
   "run_id": "{run-id}",
@@ -1149,7 +1149,7 @@ If no tests found, spawn a Sonnet agent to generate a baseline test suite coveri
 TaskCreate(
   subagent_type="general-purpose",
   model="sonnet",
-  description="Generate baseline test suite for zero-touch contracts",
+  description="Generate baseline test suite for the-shaman-pipe contracts",
   context={
     "contracts": {all contract JSONs},
     "design": {design.json},
@@ -1227,7 +1227,7 @@ Produce a structured validation report:
 
 Persist the report for Stage 5 to reference on resume:
 ```
-Write(".zero-touch/state/{run-id}/validation-report.json", validationReport)
+Write(".shaman-pipe/state/{run-id}/validation-report.json", validationReport)
 ```
 
 Any failure enters the Adaptive Correction System. Success gates Stage 5.
@@ -1241,12 +1241,12 @@ Any failure enters the Adaptive Correction System. Success gates Stage 5.
 **Output:** Verdict (APPROVE, FIX_MINOR, RE-PLAN, REJECT)
 **Gate:** Verdict must be APPROVE to proceed to Stage 6
 
-Check for cancel sentinel: if `.zero-touch/CANCEL` exists, enter cancellation flow (see Cancellation section).
+Check for cancel sentinel: if `.shaman-pipe/CANCEL` exists, enter cancellation flow (see Cancellation section).
 If `config.checkpoint_mode` is `true`, run the Stage 4→5 checkpoint (see Checkpoint Gate section).
 
 Update run state:
 ```
-Write(".zero-touch/state/run-state.json", {
+Write(".shaman-pipe/state/run-state.json", {
   "active": true,
   "stage": 5,
   "run_id": "{run-id}",
@@ -1318,7 +1318,7 @@ Opus rewrites ONLY the affected contracts. Stage 3 re-runs for those units ONLY 
 
 Action:
 1. Opus identifies affected unit IDs
-2. Opus rewrites their contracts in `.zero-touch/state/{run-id}/contracts/{unit-id}.json`
+2. Opus rewrites their contracts in `.shaman-pipe/state/{run-id}/contracts/{unit-id}.json`
 3. New sub-branches are created for affected units: `feature/{run-id}/unit-{unit-id}-v2`
 4. Sonnet agents re-implement only those units
 5. Merge protocol replays the full merge order but skips units that are already cleanly merged (detected via `git merge-base --is-ancestor`)
@@ -1327,7 +1327,7 @@ Action:
 **`REJECT`** -- Unacceptable security risk or feature would cause architectural harm.
 
 Action:
-1. Write structured rejection rationale to `.zero-touch/state/{run-id}/rejection.json`:
+1. Write structured rejection rationale to `.shaman-pipe/state/{run-id}/rejection.json`:
    ```json
    {
      "verdict": "REJECT",
@@ -1338,10 +1338,10 @@ Action:
    ```
 2. Archive the feature branch (do not delete)
 3. Release the pool slot
-4. Clear run state: `Bash("rm -f .zero-touch/state/run-state.json")`
+4. Clear run state: `Bash("rm -f .shaman-pipe/state/run-state.json")`
 5. Pipeline terminates. Human intervention required.
 
-> "Pipeline REJECTED at Stage 5 review. Reason: {reason}. Branch preserved at feature/zt-{run-id}-{slug} for inspection. See .zero-touch/state/{run-id}/rejection.json for details."
+> "Pipeline REJECTED at Stage 5 review. Reason: {reason}. Branch preserved at feature/sp-{run-id}-{slug} for inspection. See .shaman-pipe/state/{run-id}/rejection.json for details."
 
 ---
 
@@ -1352,12 +1352,12 @@ Action:
 **Output:** PR or merged commit
 **Gate:** Successful PR creation or merge
 
-Check for cancel sentinel: if `.zero-touch/CANCEL` exists, enter cancellation flow (see Cancellation section).
+Check for cancel sentinel: if `.shaman-pipe/CANCEL` exists, enter cancellation flow (see Cancellation section).
 If `config.checkpoint_mode` is `true`, run the Stage 5→6 checkpoint (see Checkpoint Gate section).
 
 Update run state:
 ```
-Write(".zero-touch/state/run-state.json", {
+Write(".shaman-pipe/state/run-state.json", {
   "active": true,
   "stage": 6,
   "run_id": "{run-id}",
@@ -1369,7 +1369,7 @@ Write(".zero-touch/state/run-state.json", {
 ### Read Config
 
 ```
-Read(".zero-touch/config.json")
+Read(".shaman-pipe/config.json")
 ```
 
 Determine delivery mode: `"pr"` or `"merge"`.
@@ -1381,7 +1381,7 @@ Build the commit message from `design.json`:
 ```
 feat({scope}): {feature_slug as human-readable description}
 
-Implements contract set zt-{run-id}. {Closes #{ticket_id}. | ""}
+Implements contract set sp-{run-id}. {Closes #{ticket_id}. | ""}
 
 Contracts: {comma-separated unit-id list from feature-plan.json}
 Approach: {chosen_approach from design.json}
@@ -1395,11 +1395,11 @@ Where `{scope}` is derived from the primary scope directory in `design.json` (e.
 ### PR Mode
 
 ```
-Bash("cd {worktree_path} && git push -u origin feature/zt-{run-id}-{slug}")
+Bash("cd {worktree_path} && git push -u origin feature/sp-{run-id}-{slug}")
 ```
 
 ```
-Bash("cd {worktree_path} && gh pr create --title 'feat({scope}): {description}' --body \"$(cat <<'PR_EOF'\n## Summary\n\nImplements contract set zt-{run-id}.{ticket_close_line}\n\n## Contracts\n{unit list with descriptions}\n\n## Approach\n{chosen_approach}\n\nAmbiguity score at design: {ambiguity_score * 100}%\n\n## Acceptance Criteria\n{criteria list with pass/fail from Stage 4}\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>\nPR_EOF\n)\" --base {target_branch}")
+Bash("cd {worktree_path} && gh pr create --title 'feat({scope}): {description}' --body \"$(cat <<'PR_EOF'\n## Summary\n\nImplements contract set sp-{run-id}.{ticket_close_line}\n\n## Contracts\n{unit list with descriptions}\n\n## Approach\n{chosen_approach}\n\nAmbiguity score at design: {ambiguity_score * 100}%\n\n## Acceptance Criteria\n{criteria list with pass/fail from Stage 4}\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>\nPR_EOF\n)\" --base {target_branch}")
 ```
 
 If `config.json.auto_merge_on_ci_pass` is true:
@@ -1410,25 +1410,25 @@ Bash("gh pr merge --auto --squash")
 ### Direct Merge Mode
 
 ```
-Bash("git checkout {target_branch} && git merge feature/zt-{run-id}-{slug} --no-ff -m \"$(cat <<'MSG_EOF'\nfeat({scope}): {description}\n\nImplements contract set zt-{run-id}.{ticket_close_line}\n\nContracts: {unit-id list}\nApproach: {chosen_approach}\nAmbiguity score at design: {ambiguity_score * 100}%\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>\nMSG_EOF\n)\"")
+Bash("git checkout {target_branch} && git merge feature/sp-{run-id}-{slug} --no-ff -m \"$(cat <<'MSG_EOF'\nfeat({scope}): {description}\n\nImplements contract set sp-{run-id}.{ticket_close_line}\n\nContracts: {unit-id list}\nApproach: {chosen_approach}\nAmbiguity score at design: {ambiguity_score * 100}%\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>\nMSG_EOF\n)\"")
 ```
 
 ### Cleanup
 
 **Step 1: Remove agent sub-worktrees** (must happen before branch deletion)
 ```
-Bash("git worktree list --porcelain | grep '.zero-touch/worktrees/{slot-id}/agents' | awk '/worktree/{print $2}' | xargs -r -I{} git worktree remove {} --force")
+Bash("git worktree list --porcelain | grep '.shaman-pipe/worktrees/{slot-id}/agents' | awk '/worktree/{print $2}' | xargs -r -I{} git worktree remove {} --force")
 ```
 
 **Step 2: Remove feature worktree** (must happen before branch deletion — worktree references the branch)
 ```
-Bash("git worktree remove .zero-touch/worktrees/{slot-id} --force")
+Bash("git worktree remove .shaman-pipe/worktrees/{slot-id} --force")
 ```
 
 **Step 3: Archive feature branch and sub-branches** (only after worktrees removed)
 ```
 Bash("git branch --list 'feature/{run-id}/*' | xargs -r git branch -D")
-Bash("git branch -D feature/zt-{run-id}-{slug} 2>/dev/null; git push origin --delete feature/zt-{run-id}-{slug} 2>/dev/null || true")
+Bash("git branch -D feature/sp-{run-id}-{slug} 2>/dev/null; git push origin --delete feature/sp-{run-id}-{slug} 2>/dev/null || true")
 ```
 
 **Step 4: Release pool slot**
@@ -1447,7 +1447,7 @@ Read pool.json, update the claimed slot:
 
 Write via atomic temp+rename:
 ```
-Bash("cat > .zero-touch/worktrees/pool.{pid}.tmp << 'POOL_EOF'\n{updated pool.json}\nPOOL_EOF\nmv .zero-touch/worktrees/pool.{pid}.tmp .zero-touch/worktrees/pool.json")
+Bash("cat > .shaman-pipe/worktrees/pool.{pid}.tmp << 'POOL_EOF'\n{updated pool.json}\nPOOL_EOF\nmv .shaman-pipe/worktrees/pool.{pid}.tmp .shaman-pipe/worktrees/pool.json")
 ```
 
 **Step 4: Archive run state**
@@ -1455,12 +1455,12 @@ Bash("cat > .zero-touch/worktrees/pool.{pid}.tmp << 'POOL_EOF'\n{updated pool.js
 Compile the run log:
 ```json
 {
-  "run_id": "zt-a3f2c1d9",
+  "run_id": "sp-a3f2c1d9",
   "feature_slug": "stripe-webhook-handler",
   "started_at": "2026-03-13T10:00:00Z",
   "completed_at": "2026-03-13T10:45:00Z",
   "stages_completed": [0, 1, 2, 3, 4, 5, 6],
-  "delivery": { "mode": "pr", "pr_url": "https://github.com/...", "branch": "feature/zt-a3f2c1d9-stripe-webhook-handler" },
+  "delivery": { "mode": "pr", "pr_url": "https://github.com/...", "branch": "feature/sp-a3f2c1d9-stripe-webhook-handler" },
   "units": ["unit-event-schema", "unit-webhook-handler"],
   "corrections": { "total": 0, "by_type": {} },
   "ambiguity_score": 0.14,
@@ -1469,16 +1469,16 @@ Compile the run log:
 ```
 
 ```
-Write(".zero-touch/logs/{run-id}.json", runLogJson)
+Write(".shaman-pipe/logs/{run-id}.json", runLogJson)
 ```
 
 **Step 5: Clear run state**
 
 ```
-Bash("rm -f .zero-touch/state/run-state.json")
+Bash("rm -f .shaman-pipe/state/run-state.json")
 ```
 
-> "Zero-touch pipeline complete. {PR created at {url} | Merged to {target_branch}}. Run archived to .zero-touch/logs/{run-id}.json."
+> "The Shaman Pipe complete. {PR created at {url} | Merged to {target_branch}}. Run archived to .shaman-pipe/logs/{run-id}.json."
 
 ---
 
@@ -1599,7 +1599,7 @@ Step 1: Opus reads original contract + failure + implementation
 
 **Global ceiling:** `3 x number_of_units` total correction attempts across all units and types.
 
-Track budgets in `.zero-touch/state/{run-id}/corrections.json`:
+Track budgets in `.shaman-pipe/state/{run-id}/corrections.json`:
 ```json
 {
   "units": {
@@ -1622,7 +1622,7 @@ When a per-unit budget or the global ceiling is exhausted, produce a structured 
 ```json
 {
   "escalation": true,
-  "run_id": "zt-a3f2c1d9",
+  "run_id": "sp-a3f2c1d9",
   "unit_id": "unit-webhook-handler",
   "stage": 4,
   "failure_type": "LOGIC",
@@ -1641,19 +1641,19 @@ When a per-unit budget or the global ceiling is exhausted, produce a structured 
       "result": "DTO mapping added but type mismatch on status field"
     }
   ],
-  "branch_preserved": "feature/zt-a3f2c1d9-stripe-webhook-handler",
+  "branch_preserved": "feature/sp-a3f2c1d9-stripe-webhook-handler",
   "recommendation": "Manual review of src/payments/webhook.ts:42 - the WebhookResponse type definition may need updating to match the actual DB schema"
 }
 ```
 
 Write to run state:
 ```
-Write(".zero-touch/state/{run-id}/escalation.json", escalationJson)
+Write(".shaman-pipe/state/{run-id}/escalation.json", escalationJson)
 ```
 
 Pipeline halts. Branch is preserved for manual inspection. Pool slot remains claimed (manual release required after resolution).
 
-> "Correction budget exhausted for unit {unit-id} ({failure_type}). {attempts_made} attempts made. Branch preserved at feature/zt-{run-id}-{slug}. See .zero-touch/state/{run-id}/escalation.json for full history."
+> "Correction budget exhausted for unit {unit-id} ({failure_type}). {attempts_made} attempts made. Branch preserved at feature/sp-{run-id}-{slug}. See .shaman-pipe/state/{run-id}/escalation.json for full history."
 
 ### Correction Context (injected into every retry)
 
@@ -1685,8 +1685,8 @@ Every correction attempt receives structured context, not raw error output:
     {
       "id": "feature-1",
       "status": "claimed",
-      "run_id": "zt-a3f2c1d9",
-      "branch": "feature/zt-a3f2c1d9-stripe-webhook-handler",
+      "run_id": "sp-a3f2c1d9",
+      "branch": "feature/sp-a3f2c1d9-stripe-webhook-handler",
       "claimed_at": "2026-03-13T10:00:00Z",
       "last_heartbeat": "2026-03-13T10:42:00Z"
     },
@@ -1713,13 +1713,13 @@ Every correction attempt receives structured context, not raw error output:
 
 ### Atomic Claim Protocol
 
-Race conditions can occur when two `/zero-touch` invocations run simultaneously. The atomic claim protocol prevents double-claiming:
+Race conditions can occur when two `/the-shaman-pipe` invocations run simultaneously. The atomic claim protocol prevents double-claiming:
 
 ```
 Step 1: Read pool.json
 Step 2: Find first available slot
 Step 3: Write updated pool (with slot claimed) to temp file:
-          .zero-touch/worktrees/pool.{pid}.tmp
+          .shaman-pipe/worktrees/pool.{pid}.tmp
         where {pid} is the current process ID
 Step 4: Atomic rename: mv pool.{pid}.tmp pool.json
 Step 5: Re-read pool.json to verify OUR run_id is in the claimed slot
@@ -1734,7 +1734,7 @@ The rename operation is atomic on POSIX filesystems -- either it fully replaces 
 Active runs update `last_heartbeat` every 5 minutes during all stages that hold a slot (Stages 1-6):
 
 ```
-Read(".zero-touch/worktrees/pool.json")
+Read(".shaman-pipe/worktrees/pool.json")
 -- Update claimed slot's last_heartbeat to current ISO timestamp
 Write via atomic temp+rename
 ```
@@ -1758,7 +1758,7 @@ Step 5: Check for available slots (claim if found)
 Step 6: If still no slot, repeat from Step 2
 ```
 
-No hard timeout on queuing. The pipeline waits indefinitely for a slot. The user can create `.zero-touch/CANCEL` to exit the queue.
+No hard timeout on queuing. The pipeline waits indefinitely for a slot. The user can create `.shaman-pipe/CANCEL` to exit the queue.
 
 </Pool_Management>
 
@@ -1795,7 +1795,7 @@ Present via `AskUserQuestion`:
 ```
 Environment ready.
 
-Branch:         feature/zt-{run-id}-{slug}
+Branch:         feature/sp-{run-id}-{slug}
 Worktree slot:  {slot-id}
 Checks passed:  7/7
 {Any warnings, or "No warnings"}
@@ -1878,14 +1878,14 @@ Options: `["Proceed to Stage 6: Commit", "Pause — resume later", "Cancel pipel
 
 **"Proceed to Stage N"** — Continue normally. The run-state update executes immediately after.
 
-**"Pause — resume later"** — Pipeline halts gracefully. `run-state.json` retains the current `stage` value (the stage about to begin), so `/zero-touch --resume {run-id}` re-enters at the correct point. The worktree slot remains claimed; heartbeat stops. The slot becomes stale after 10 minutes and may be auto-released if another run needs it.
+**"Pause — resume later"** — Pipeline halts gracefully. `run-state.json` retains the current `stage` value (the stage about to begin), so `/the-shaman-pipe --resume {run-id}` re-enters at the correct point. The worktree slot remains claimed; heartbeat stops. The slot becomes stale after 10 minutes and may be auto-released if another run needs it.
 
-**"Cancel pipeline"** — Enters the same cancellation flow as the `.zero-touch/CANCEL` sentinel: release worktree slot, archive branch, clear run-state, write partial run log to `.zero-touch/logs/{run-id}.json`.
+**"Cancel pipeline"** — Enters the same cancellation flow as the `.shaman-pipe/CANCEL` sentinel: release worktree slot, archive branch, clear run-state, write partial run log to `.shaman-pipe/logs/{run-id}.json`.
 
 </Checkpoint_Gate>
 
 <Tool_Usage>
-- `Write(".zero-touch/state/run-state.json", ...)` / `Read(".zero-touch/state/run-state.json")` / `Bash("rm -f .zero-touch/state/run-state.json")` -- self-contained run state for resume and cancellation
+- `Write(".shaman-pipe/state/run-state.json", ...)` / `Read(".shaman-pipe/state/run-state.json")` / `Bash("rm -f .shaman-pipe/state/run-state.json")` -- self-contained run state for resume and cancellation
 - `TaskCreate(subagent_type="general-purpose", model="sonnet", ...)` -- spawn parallel Sonnet agents in Stage 3
 - `SendMessage(task_id, ...)` -- communicate with spawned agents if needed
 - `TaskGet(task_id)` / `TaskList()` -- monitor agent completion in Stage 3
@@ -1903,12 +1903,12 @@ Options: `["Proceed to Stage 6: Commit", "Pause — resume later", "Cancel pipel
 
 | Scenario | Behavior |
 |---|---|
-| Stage 0 interrupted | Resume from run-state.json if it exists. `Read(".zero-touch/state/run-state.json")` returns stage and run_id. Re-read `.zero-touch/state/{run-id}/design.json` if Phase A completed. Resume Phase B if design.json exists but no chosen_approach. |
-| Stage 3 agent crash | Heartbeat expires after 10 minutes with no update. Next `/zero-touch` invocation or stale check releases the slot with a warning. Branch is archived, not deleted. Run state preserved for debugging. |
+| Stage 0 interrupted | Resume from run-state.json if it exists. `Read(".shaman-pipe/state/run-state.json")` returns stage and run_id. Re-read `.shaman-pipe/state/{run-id}/design.json` if Phase A completed. Resume Phase B if design.json exists but no chosen_approach. |
+| Stage 3 agent crash | Heartbeat expires after 10 minutes with no update. Next `/the-shaman-pipe` invocation or stale check releases the slot with a warning. Branch is archived, not deleted. Run state preserved for debugging. |
 | Stage 6 merge fail (direct mode) | Target branch left in pre-merge state. Run logs record the failure. Manual resolution required -- no auto-rollback of a partial merge. Pool slot released. |
-| Budget exhausted | Structured escalation report written to `.zero-touch/state/{run-id}/escalation.json`. Branch preserved for manual inspection. Pool slot remains claimed. Pipeline halts with human-readable summary. |
+| Budget exhausted | Structured escalation report written to `.shaman-pipe/state/{run-id}/escalation.json`. Branch preserved for manual inspection. Pool slot remains claimed. Pipeline halts with human-readable summary. |
 | Pool full (all slots claimed) | Check stale slots first (heartbeat > 10 min). If stale found, release and claim. If no stale, queue: wait 5 seconds, retry. Repeat until slot available. User can `/cancel` to exit queue. |
-| Cancel during any stage (`.zero-touch/CANCEL` sentinel) | Release worktree slot (set status to available). Archive feature branch. Clear run state (`rm -f .zero-touch/state/run-state.json`). Write partial run log to `.zero-touch/logs/{run-id}.json` with `stages_completed` reflecting progress. Remove sentinel (`rm -f .zero-touch/CANCEL`). |
+| Cancel during any stage (`.shaman-pipe/CANCEL` sentinel) | Release worktree slot (set status to available). Archive feature branch. Clear run state (`rm -f .shaman-pipe/state/run-state.json`). Write partial run log to `.shaman-pipe/logs/{run-id}.json` with `stages_completed` reflecting progress. Remove sentinel (`rm -f .shaman-pipe/CANCEL`). |
 | `gh` CLI not authenticated | Stage 1 branch protection check falls back gracefully (warns, uses config.json value). Stage 6 PR creation fails with clear error pointing to `gh auth login`. |
 | Critic pass fails 3 times | Pipeline halts at Stage 2. Contracts are fundamentally flawed. Human review of design.json and contracts required. |
 | RE-PLAN issued twice for same units | Second RE-PLAN exhausts the ARCH correction budget for those units. Escalation report produced. |
@@ -1921,7 +1921,7 @@ Options: `["Proceed to Stage 6: Commit", "Pause — resume later", "Cancel pipel
 <Good>
 Greenfield invocation:
 ```
-User: /zero-touch "add REST API for user preferences with CRUD operations"
+User: /the-shaman-pipe "add REST API for user preferences with CRUD operations"
 
 Stage 0: Phase A clarity loop runs 6 rounds, ambiguity drops to 16%
          Opus proposes: (1) Express + Prisma, (2) Fastify + Drizzle, (3) Hono + raw SQL
@@ -1972,11 +1972,11 @@ Why good: Correction chain used minimum intervention. Budget tracked correctly. 
 <Good>
 Concurrent features:
 ```
-Session A: /zero-touch "add user preferences API"
+Session A: /the-shaman-pipe "add user preferences API"
   Claims feature-1 slot
   Running Stage 3...
 
-Session B: /zero-touch "add notification service"
+Session B: /the-shaman-pipe "add notification service"
   Check 5 (conflict scan): no scope overlap with Session A
   Claims feature-2 slot
   Running Stage 2...
@@ -2023,15 +2023,15 @@ Why bad: LOGIC budget is 2 per unit. After attempt 1, Opus should diagnose. Afte
 - **Per-unit correction budget exhausted:** Produce escalation report. Halt pipeline for that unit.
 - **Global correction ceiling reached (3 x N units):** Produce escalation report. Halt entire pipeline.
 - **Stage 5 REJECT verdict:** Hard stop. Archive branch. Write rejection rationale.
-- **User says "stop", "cancel", "abort" or creates `.zero-touch/CANCEL`:** Release slot, archive branch, clear state.
+- **User says "stop", "cancel", "abort" or creates `.shaman-pipe/CANCEL`:** Release slot, archive branch, clear state.
 - **Stage 6 merge conflict in direct mode:** Log failure, leave target branch clean, require manual resolution.
 </Escalation_And_Stop_Conditions>
 
 <Final_Checklist>
 - [ ] Run ID generated and state directory created
-- [ ] Run state written to .zero-touch/state/run-state.json at Stage 0 start
-- [ ] Namespace `.zero-touch/` bootstrapped (idempotent)
-- [ ] `.gitignore` updated with `.zero-touch/worktrees/` and `.zero-touch/state/`
+- [ ] Run state written to .shaman-pipe/state/run-state.json at Stage 0 start
+- [ ] Namespace `.shaman-pipe/` bootstrapped (idempotent)
+- [ ] `.gitignore` updated with `.shaman-pipe/worktrees/` and `.shaman-pipe/state/`
 - [ ] Stage 0: Phase A clarity loop completed with ambiguity <= 20%
 - [ ] Stage 0: design.json written with all required fields
 - [ ] Stage 0: User selected architectural approach via AskUserQuestion
@@ -2051,8 +2051,8 @@ Why bad: LOGIC budget is 2 per unit. After attempt 1, Opus should diagnose. Afte
 - [ ] Stage 5: Opus APPROVE verdict across all three lenses
 - [ ] Stage 6: PR created or direct merge completed
 - [ ] Stage 6: Pool slot released
-- [ ] Stage 6: Run state archived to `.zero-touch/logs/{run-id}.json`
-- [ ] Run state cleared (rm .zero-touch/state/run-state.json) at Stage 6 completion
+- [ ] Stage 6: Run state archived to `.shaman-pipe/logs/{run-id}.json`
+- [ ] Run state cleared (rm .shaman-pipe/state/run-state.json) at Stage 6 completion
 - [ ] No worktree collision with other active runs
 - [ ] Correction budgets respected (per-unit and global ceiling)
 </Final_Checklist>
@@ -2061,7 +2061,7 @@ Why bad: LOGIC budget is 2 per unit. After attempt 1, Opus should diagnose. Afte
 
 ## Configuration
 
-`.zero-touch/config.json` -- set during first Stage 0 run, persisted per project:
+`.shaman-pipe/config.json` -- set during first Stage 0 run, persisted per project:
 
 ```json
 {
@@ -2078,11 +2078,11 @@ Why bad: LOGIC budget is 2 per unit. After attempt 1, Opus should diagnose. Afte
 
 ## Resume
 
-If interrupted at any stage, re-invoke `/zero-touch` (no arguments needed). The skill reads `.zero-touch/state/run-state.json` and resumes from the last completed stage:
+If interrupted at any stage, re-invoke `/the-shaman-pipe` (no arguments needed). The skill reads `.shaman-pipe/state/run-state.json` and resumes from the last completed stage:
 
 | Interrupted At | Resume Behavior |
 |---|---|
-| Stage 0 Phase A | `interview-state.json` exists in `.zero-touch/state/{run-id}/`. Re-invoke `/zero-touch` to continue from the last completed round. |
+| Stage 0 Phase A | `interview-state.json` exists in `.shaman-pipe/state/{run-id}/`. Re-invoke `/the-shaman-pipe` to continue from the last completed round. |
 | Stage 0 Phase B | design.json exists but no chosen_approach. Re-present approach selection. |
 | Stage 1 | Re-run all 7 checks (idempotent). |
 | Stage 2 | If feature-plan.json exists, check for contracts. Resume Critic pass if contracts exist. |
@@ -2110,14 +2110,14 @@ If interrupted at any stage, re-invoke `/zero-touch` (no arguments needed). The 
 
 ## State Management
 
-Zero-Touch manages its own state under `.zero-touch/state/run-state.json`. No external dependencies.
+The Shaman Pipe manages its own state under `.shaman-pipe/state/run-state.json`. No external dependencies.
 
 **Schema:**
 ```json
 {
   "active": true,
   "stage": 0,
-  "run_id": "zt-a3f2c1d9",
+  "run_id": "sp-a3f2c1d9",
   "phase": "A",
   "feature_slug": "stripe-webhook-handler",
   "started_at": "2026-03-13T10:00:00Z"
@@ -2129,15 +2129,15 @@ Zero-Touch manages its own state under `.zero-touch/state/run-state.json`. No ex
 - Updated on every stage transition (stage number incremented)
 - Cleared (file deleted) at Stage 6 completion or on cancellation
 
-**Cancellation sentinel:** Create `.zero-touch/CANCEL` to request cancellation. The pipeline checks for this file at the start of each stage and enters the cancellation flow if found.
+**Cancellation sentinel:** Create `.shaman-pipe/CANCEL` to request cancellation. The pipeline checks for this file at the start of each stage and enters the cancellation flow if found.
 
-**Resume:** On `/zero-touch` invocation with no arguments, if `run-state.json` exists, read it to determine `run_id` and `stage`, then resume from the appropriate stage.
+**Resume:** On `/the-shaman-pipe` invocation with no arguments, if `run-state.json` exists, read it to determine `run_id` and `stage`, then resume from the appropriate stage.
 
-**Scope clarification:** `.zero-touch/state/run-state.json` stores the active/phase signal needed for resume and cancellation.
+**Scope clarification:** `.shaman-pipe/state/run-state.json` stores the active/phase signal needed for resume and cancellation.
 
 ## Ticket-Driven Mode
 
-`/zero-touch --ticket GH-142` fetches the issue and synthesizes `design.json` automatically:
+`/the-shaman-pipe --ticket GH-142` fetches the issue and synthesizes `design.json` automatically:
 
 ```
 Bash("gh issue view 142 --json title,body,labels,assignees")
@@ -2157,16 +2157,16 @@ If the ticket lacks acceptance criteria, Opus generates them and presents to use
 ## Worktree Lifecycle
 
 ```
-Creation:   git worktree add .zero-touch/worktrees/{slot-id} -b feature/zt-{run-id}-{slug}
+Creation:   git worktree add .shaman-pipe/worktrees/{slot-id} -b feature/sp-{run-id}-{slug}
 Usage:      All Stage 3 agents work inside this directory
-Cleanup:    git worktree remove .zero-touch/worktrees/{slot-id} --force
+Cleanup:    git worktree remove .shaman-pipe/worktrees/{slot-id} --force
 ```
 
 The worktree is a full git working directory with its own HEAD, index, and working tree. Changes in the worktree do not affect the main working directory. This enables concurrent feature development without session collision.
 
 ## Correction Budget Tracking
 
-Track correction attempts per-unit and globally in run state at `.zero-touch/state/{run-id}/corrections.json`:
+Track correction attempts per-unit and globally in run state at `.shaman-pipe/state/{run-id}/corrections.json`:
 
 ```json
 {
@@ -2199,23 +2199,23 @@ Before each correction attempt:
 
 ## Pipeline Cancellation
 
-Create `.zero-touch/CANCEL` to cancel the active run (e.g. `touch .zero-touch/CANCEL`). The pipeline checks for this sentinel at the start of each stage (1 through 6). When detected:
+Create `.shaman-pipe/CANCEL` to cancel the active run (e.g. `touch .shaman-pipe/CANCEL`). The pipeline checks for this sentinel at the start of each stage (1 through 6). When detected:
 
 ```
-Step 1: Read .zero-touch/state/run-state.json to get run_id and current stage
+Step 1: Read .shaman-pipe/state/run-state.json to get run_id and current stage
 Step 2: Remove agent sub-worktrees for current stage (if Stage 3):
-          git worktree list --porcelain | grep '.zero-touch/worktrees/{slot-id}/agents' | awk '/worktree/{print $2}' | xargs -r -I{} git worktree remove {} --force
+          git worktree list --porcelain | grep '.shaman-pipe/worktrees/{slot-id}/agents' | awk '/worktree/{print $2}' | xargs -r -I{} git worktree remove {} --force
 Step 3: Remove feature worktree:
-          git worktree remove .zero-touch/worktrees/{slot-id} --force
+          git worktree remove .shaman-pipe/worktrees/{slot-id} --force
 Step 4: Delete sub-branches and feature branch:
           git branch --list 'feature/{run-id}/*' | xargs -r git branch -D
-          git branch -D feature/zt-{run-id}-{slug} 2>/dev/null || true
+          git branch -D feature/sp-{run-id}-{slug} 2>/dev/null || true
 Step 5: Release pool slot (set status back to "available" in pool.json)
-Step 6: Write partial run log to .zero-touch/logs/{run-id}.json
+Step 6: Write partial run log to .shaman-pipe/logs/{run-id}.json
 Step 7: Clear run state:
-          Bash("rm -f .zero-touch/state/run-state.json")
+          Bash("rm -f .shaman-pipe/state/run-state.json")
 Step 8: Remove sentinel:
-          Bash("rm -f .zero-touch/CANCEL")
+          Bash("rm -f .shaman-pipe/CANCEL")
 ```
 
 </Advanced>
