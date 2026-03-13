@@ -50,7 +50,8 @@ The existing `deep-interview -> ralplan -> autopilot` pipeline chains three inde
 - Seven stages execute sequentially: 0 (Design) -> 1 (Environment) -> 2 (Planning) -> 3 (Implementation) -> 4 (Validation) -> 5 (Review) -> 6 (Commit)
 - Each stage must pass its gate before the next begins
 - Failures at any gate enter the adaptive correction chain before re-attempting or escalating
-- The only human touchpoints are Stage 0 (design conversation) and escalation gates when correction budgets are exhausted
+- The only required human touchpoints are Stage 0 (design conversation) and escalation gates when correction budgets are exhausted
+- Optional checkpoint stops between stages can be enabled via `config.json.checkpoint_mode`; when active, the pipeline pauses at each stage boundary for user review before proceeding
 - Model routing: Opus (Stages 0, 2, 5), Sonnet (Stage 3), Haiku (Stages 1, 4, 6)
 - Run state is written to .zero-touch/state/run-state.json on every stage transition
 - Cancel at any time by creating `.zero-touch/CANCEL` (e.g. `touch .zero-touch/CANCEL`); worktree slot is released, branch archived, state cleared
@@ -119,7 +120,8 @@ Bash("mkdir -p .zero-touch/worktrees .zero-touch/state .zero-touch/logs")
   "pool_size": 3,
   "auto_merge_on_ci_pass": false,
   "test_command": null,
-  "package_manager": null
+  "package_manager": null,
+  "checkpoint_mode": false
 }
 ```
 
@@ -508,7 +510,7 @@ Options: `["Approach 1: {name}", "Approach 2: {name}", "Approach 3: {name}"]`
 
 **Step 2: First-run config questions (only if `.zero-touch/config.json` still has defaults).**
 
-If this is the first run (config has not been user-confirmed), ask two questions:
+If this is the first run (config has not been user-confirmed), ask three questions:
 
 Question 1 via `AskUserQuestion`:
 ```
@@ -522,10 +524,22 @@ What is the target branch?
 ```
 Options: `["{detected-main-branch}", "Other (specify)"]`
 
+Question 3 via `AskUserQuestion`:
+```
+Would you like checkpoint stops between stages?
+
+With checkpoints ON, the pipeline pauses after each stage and shows you what was built
+before asking whether to proceed. Useful if you want to review the plan, contracts, or
+implementation before they become irreversible. You can still cancel at any time via
+`touch .zero-touch/CANCEL` regardless of this setting.
+```
+Options: `["No — run fully autonomous (recommended)", "Yes — pause between each stage for review"]`
+
 Persist answers to `.zero-touch/config.json`:
 ```
 Read(".zero-touch/config.json")
 Edit(".zero-touch/config.json", old_delivery_mode, new_delivery_mode)
+Edit(".zero-touch/config.json", "\"checkpoint_mode\": false", "\"checkpoint_mode\": {true|false per answer}")
 ```
 
 ### Write design.json
@@ -563,6 +577,7 @@ Write(".zero-touch/state/{run-id}/design.json", designJson)
 **Gate:** All 7 checks must pass (warnings allowed, errors block)
 
 Check for cancel sentinel: if `.zero-touch/CANCEL` exists, enter cancellation flow (see Cancellation section).
+If `config.checkpoint_mode` is `true`, run the Stage 0→1 checkpoint (see Checkpoint Gate section).
 
 Update run state:
 ```
@@ -717,6 +732,7 @@ This creates an isolated working directory with its own feature branch.
 **Gate:** All contracts pass independent Critic review
 
 Check for cancel sentinel: if `.zero-touch/CANCEL` exists, enter cancellation flow (see Cancellation section).
+If `config.checkpoint_mode` is `true`, run the Stage 1→2 checkpoint (see Checkpoint Gate section).
 
 Update run state:
 ```
@@ -886,6 +902,7 @@ Stage 3 does NOT begin until all contracts pass the Critic.
 **Gate:** All units pass inline contract gate + merge protocol completes
 
 Check for cancel sentinel: if `.zero-touch/CANCEL` exists, enter cancellation flow (see Cancellation section).
+If `config.checkpoint_mode` is `true`, run the Stage 2→3 checkpoint (see Checkpoint Gate section).
 
 Update run state:
 ```
@@ -1079,6 +1096,7 @@ After all units are merged, the feature branch contains the complete implementat
 **Gate:** All validation checks pass (failures enter correction chain)
 
 Check for cancel sentinel: if `.zero-touch/CANCEL` exists, enter cancellation flow (see Cancellation section).
+If `config.checkpoint_mode` is `true`, run the Stage 3→4 checkpoint (see Checkpoint Gate section).
 
 Update run state:
 ```
@@ -1224,6 +1242,7 @@ Any failure enters the Adaptive Correction System. Success gates Stage 5.
 **Gate:** Verdict must be APPROVE to proceed to Stage 6
 
 Check for cancel sentinel: if `.zero-touch/CANCEL` exists, enter cancellation flow (see Cancellation section).
+If `config.checkpoint_mode` is `true`, run the Stage 4→5 checkpoint (see Checkpoint Gate section).
 
 Update run state:
 ```
@@ -1334,6 +1353,7 @@ Action:
 **Gate:** Successful PR creation or merge
 
 Check for cancel sentinel: if `.zero-touch/CANCEL` exists, enter cancellation flow (see Cancellation section).
+If `config.checkpoint_mode` is `true`, run the Stage 5→6 checkpoint (see Checkpoint Gate section).
 
 Update run state:
 ```
@@ -1741,6 +1761,128 @@ Step 6: If still no slot, repeat from Step 2
 No hard timeout on queuing. The pipeline waits indefinitely for a slot. The user can create `.zero-touch/CANCEL` to exit the queue.
 
 </Pool_Management>
+
+<Checkpoint_Gate>
+
+## Checkpoint Gate (optional — `config.json.checkpoint_mode`)
+
+When `checkpoint_mode` is `true`, the pipeline pauses at each stage boundary. The gate fires **after** the cancel sentinel check and **before** the run-state update for the incoming stage. It presents a summary of the just-completed stage and asks the user whether to proceed.
+
+### Checkpoint Summaries
+
+**Stage 0 → Stage 1 (Design complete)**
+
+Present via `AskUserQuestion`:
+```
+Design complete.
+
+Feature:             {feature_slug}
+Ambiguity:           {ambiguity_score * 100}%
+Chosen approach:     {chosen_approach}
+Goals:               {goals count}
+Acceptance criteria: {criteria count}
+Scope:               {scope directories}
+
+Proceed to environment check (Stage 1)?
+```
+Options: `["Proceed to Stage 1: Environment Check", "Pause — resume later", "Cancel pipeline"]`
+
+---
+
+**Stage 1 → Stage 2 (Environment ready)**
+
+Present via `AskUserQuestion`:
+```
+Environment ready.
+
+Branch:         feature/zt-{run-id}-{slug}
+Worktree slot:  {slot-id}
+Checks passed:  7/7
+{Any warnings, or "No warnings"}
+
+Proceed to planning (Stage 2)?
+```
+Options: `["Proceed to Stage 2: Planning", "Pause — resume later", "Cancel pipeline"]`
+
+---
+
+**Stage 2 → Stage 3 (Planning complete)**
+
+Present via `AskUserQuestion`:
+```
+Planning complete.
+
+Units decomposed:              {unit count}
+Contracts authored + approved: {unit count}
+Parallelism:                   {parallelism}
+Merge order:                   {merge_order list}
+
+Proceed to implementation (Stage 3)?
+```
+Options: `["Proceed to Stage 3: Implementation", "Pause — resume later", "Cancel pipeline"]`
+
+---
+
+**Stage 3 → Stage 4 (Implementation complete)**
+
+Present via `AskUserQuestion`:
+```
+Implementation complete.
+
+Units merged:      {unit count}
+Corrections used:  {global_total}/{global_ceiling}
+
+Proceed to validation (Stage 4)?
+```
+Options: `["Proceed to Stage 4: Validation", "Pause — resume later", "Cancel pipeline"]`
+
+---
+
+**Stage 4 → Stage 5 (Validation passed)**
+
+Present via `AskUserQuestion`:
+```
+Validation passed.
+
+Tests:               {passed}/{total} passing
+Type check:          {pass | N errors}
+Lint:                {pass | N warnings, N errors}
+Acceptance criteria: {N}/{total} mapped to passing tests
+
+Proceed to security and quality review (Stage 5)?
+```
+Options: `["Proceed to Stage 5: Review", "Pause — resume later", "Cancel pipeline"]`
+
+---
+
+**Stage 5 → Stage 6 (Review verdict)**
+
+Present via `AskUserQuestion`:
+```
+Review complete.
+
+Verdict:             APPROVE
+Security:            clean
+Code quality:        clean
+Acceptance criteria: all met
+
+Proceed to commit / PR creation (Stage 6)?
+```
+Options: `["Proceed to Stage 6: Commit", "Pause — resume later", "Cancel pipeline"]`
+
+> Note: Stage 6 checkpoint only fires on `APPROVE`. `FIX_MINOR` and `RE-PLAN` loop back through Stages 3–5 and will re-trigger their own checkpoints; `REJECT` terminates the pipeline directly without a checkpoint.
+
+---
+
+### Checkpoint Responses
+
+**"Proceed to Stage N"** — Continue normally. The run-state update executes immediately after.
+
+**"Pause — resume later"** — Pipeline halts gracefully. `run-state.json` retains the current `stage` value (the stage about to begin), so `/zero-touch --resume {run-id}` re-enters at the correct point. The worktree slot remains claimed; heartbeat stops. The slot becomes stale after 10 minutes and may be auto-released if another run needs it.
+
+**"Cancel pipeline"** — Enters the same cancellation flow as the `.zero-touch/CANCEL` sentinel: release worktree slot, archive branch, clear run-state, write partial run log to `.zero-touch/logs/{run-id}.json`.
+
+</Checkpoint_Gate>
 
 <Tool_Usage>
 - `Write(".zero-touch/state/run-state.json", ...)` / `Read(".zero-touch/state/run-state.json")` / `Bash("rm -f .zero-touch/state/run-state.json")` -- self-contained run state for resume and cancellation

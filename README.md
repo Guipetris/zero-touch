@@ -21,7 +21,7 @@ Stage 5  Review       Opus     Security, blast radius, code quality gate
 Stage 6  Commit       Haiku    Conventional commit + PR or direct merge
 ```
 
-**You interact twice**: once in Stage 0 (what to build and which approach), and only again if a correction budget is exhausted. Everything else is autonomous.
+**You interact twice by default**: once in Stage 0 (what to build and which approach), and only again if a correction budget is exhausted. Everything else is autonomous. Enable `checkpoint_mode` to add optional pause points between stages — useful when you want to review the plan or contracts before they become irreversible.
 
 ## Stage 0: Design Intelligence
 
@@ -109,12 +109,31 @@ touch .zero-touch/CANCEL
 
 The pipeline checks for the sentinel at the start of each stage, releases the worktree slot, archives the branch, and cleans up state.
 
+## Checkpoints (optional)
+
+Enable `checkpoint_mode` during first-run setup to add interactive pause points between every stage:
+
+```
+Stage N completes → summary shown → user confirms → Stage N+1 begins
+```
+
+At each checkpoint you get three options:
+
+| Option | Effect |
+|---|---|
+| Proceed to Stage N | Continue pipeline normally |
+| Pause — resume later | Halt gracefully; resume with `/zero-touch --resume {run-id}` |
+| Cancel pipeline | Same as `.zero-touch/CANCEL` — clean teardown |
+
+Checkpoints are designed for developers who want to inspect the Opus-authored contracts before implementation, or review the validation report before triggering the security review. The pipeline is fully autonomous by default — checkpoints are opt-in.
+
 ## Configuration
 
-On first run, Zero-Touch asks two questions and writes answers to `.zero-touch/config.json`:
+On first run, Zero-Touch asks three questions and writes answers to `.zero-touch/config.json`:
 
 - **Delivery mode**: PR to target branch (recommended) or direct merge
 - **Target branch**: auto-detected (main/master) or specify
+- **Checkpoint mode**: fully autonomous (default) or pause between each stage for review
 
 Config is project-local and added to `.gitignore` automatically.
 
