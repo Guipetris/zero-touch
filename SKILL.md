@@ -96,6 +96,7 @@ Parse `{{ARGUMENTS}}` to determine invocation mode:
 - Extract `run_id` and `stage` from state
 - Read `.shaman-pipe/state/{run-id}/design.json` if it exists
 - Resume from the last completed stage
+- **Timing preservation:** `model-timing.json` from the previous partial run is preserved. Do NOT call `--init` again. The resumed stage gets a fresh `--start-stage` call (gap between crash and resume is not counted). Entries without `ended_at` from the crashed stage are harmlessly skipped by readers.
 
 **Flags:**
 - `--init` : Allow git init if no .git directory exists
@@ -210,6 +211,13 @@ Write(".shaman-pipe/state/run-state.json", {
   "feature_slug": "{slug}",
   "started_at": "<ISO timestamp>"
 })
+```
+
+### Initialize model timing
+
+```
+Bash("node ~/.claude/hud/shaman-timing.mjs --init {run-id} \"{slug}\" || true")
+Bash("node ~/.claude/hud/shaman-timing.mjs --start-stage 0 \"Clarity Ritual\" opus || true")
 ```
 
 ### Phase A: Socratic Clarity Loop
@@ -620,6 +628,12 @@ Set `"ambiguity_score"` to the final post-refinement value (not the spec's initi
 Check for cancel sentinel: if `.shaman-pipe/CANCEL` exists, enter cancellation flow (see Cancellation section).
 If `config.checkpoint_mode` is `true`, run the Stage 0→1 checkpoint (see Checkpoint Gate section).
 
+End Stage 0 timing, start Stage 1:
+```
+Bash("node ~/.claude/hud/shaman-timing.mjs --end-stage 0 success || true")
+Bash("node ~/.claude/hud/shaman-timing.mjs --start-stage 1 \"Environment Reading\" haiku || true")
+```
+
 Update run state:
 ```
 Write(".shaman-pipe/state/run-state.json", {
@@ -774,6 +788,12 @@ This creates an isolated working directory with its own feature branch.
 
 Check for cancel sentinel: if `.shaman-pipe/CANCEL` exists, enter cancellation flow (see Cancellation section).
 If `config.checkpoint_mode` is `true`, run the Stage 1→2 checkpoint (see Checkpoint Gate section).
+
+End Stage 1 timing, start Stage 2:
+```
+Bash("node ~/.claude/hud/shaman-timing.mjs --end-stage 1 success || true")
+Bash("node ~/.claude/hud/shaman-timing.mjs --start-stage 2 \"Contract Ceremony\" opus || true")
+```
 
 Update run state:
 ```
@@ -945,6 +965,12 @@ Stage 3 does NOT begin until all contracts pass the Critic.
 Check for cancel sentinel: if `.shaman-pipe/CANCEL` exists, enter cancellation flow (see Cancellation section).
 If `config.checkpoint_mode` is `true`, run the Stage 2→3 checkpoint (see Checkpoint Gate section).
 
+End Stage 2 timing, start Stage 3:
+```
+Bash("node ~/.claude/hud/shaman-timing.mjs --end-stage 2 success || true")
+Bash("node ~/.claude/hud/shaman-timing.mjs --start-stage 3 \"The Summoning\" sonnet || true")
+```
+
 Update run state:
 ```
 Write(".shaman-pipe/state/run-state.json", {
@@ -975,7 +1001,12 @@ Pool slots remain at 3 (3 simultaneous features). Within each slot, N agent sub-
 
 ### Per-Agent Lifecycle
 
-For each unit in `feature-plan.json`, spawn a Sonnet agent via TaskCreate:
+For each unit in `feature-plan.json`, spawn a Sonnet agent via TaskCreate.
+
+Before spawning each agent, record timing:
+```
+Bash("node ~/.claude/hud/shaman-timing.mjs --start-agent 3 {unit-id} sonnet || true")
+```
 
 ```
 TaskCreate(
@@ -1052,6 +1083,11 @@ Verify declared side effects are present (e.g., DB operations, API calls).
 Bash("cd .shaman-pipe/worktrees/{slot-id}/agents/{unit-id} && git diff HEAD --name-only")
 ```
 Verify no file in `contract.restricted_from` appears in the diff.
+
+If all checks pass, record agent timing completion:
+```
+Bash("node ~/.claude/hud/shaman-timing.mjs --end-agent 3 {unit-id} || true")
+```
 
 If any check fails: enter the Adaptive Correction System (see below) for this unit.
 
@@ -1138,6 +1174,12 @@ After all units are merged, the feature branch contains the complete implementat
 
 Check for cancel sentinel: if `.shaman-pipe/CANCEL` exists, enter cancellation flow (see Cancellation section).
 If `config.checkpoint_mode` is `true`, run the Stage 3→4 checkpoint (see Checkpoint Gate section).
+
+End Stage 3 timing, start Stage 4:
+```
+Bash("node ~/.claude/hud/shaman-timing.mjs --end-stage 3 success || true")
+Bash("node ~/.claude/hud/shaman-timing.mjs --start-stage 4 \"Validation Rite\" haiku || true")
+```
 
 Update run state:
 ```
@@ -1285,6 +1327,12 @@ Any failure enters the Adaptive Correction System. Success gates Stage 5.
 Check for cancel sentinel: if `.shaman-pipe/CANCEL` exists, enter cancellation flow (see Cancellation section).
 If `config.checkpoint_mode` is `true`, run the Stage 4→5 checkpoint (see Checkpoint Gate section).
 
+End Stage 4 timing, start Stage 5:
+```
+Bash("node ~/.claude/hud/shaman-timing.mjs --end-stage 4 success || true")
+Bash("node ~/.claude/hud/shaman-timing.mjs --start-stage 5 \"Final Judgment\" opus || true")
+```
+
 Update run state:
 ```
 Write(".shaman-pipe/state/run-state.json", {
@@ -1379,8 +1427,13 @@ Action:
    ```
 2. Archive the feature branch (do not delete)
 3. Release the pool slot
-4. Clear run state: `Bash("rm -f .shaman-pipe/state/run-state.json")`
-5. Pipeline terminates. Human intervention required.
+4. Record timing and print summary:
+   ```
+   Bash("node ~/.claude/hud/shaman-timing.mjs --fail || true")
+   Bash("node ~/.claude/hud/shaman-summary.mjs --run-id {run-id} || true")
+   ```
+5. Clear run state: `Bash("rm -f .shaman-pipe/state/run-state.json")`
+6. Pipeline terminates. Human intervention required.
 
 > "Pipeline REJECTED at Stage 5 review. Reason: {reason}. Branch preserved at feature/sp-{run-id}-{slug} for inspection. See .shaman-pipe/state/{run-id}/rejection.json for details."
 
@@ -1395,6 +1448,12 @@ Action:
 
 Check for cancel sentinel: if `.shaman-pipe/CANCEL` exists, enter cancellation flow (see Cancellation section).
 If `config.checkpoint_mode` is `true`, run the Stage 5→6 checkpoint (see Checkpoint Gate section).
+
+End Stage 5 timing, start Stage 6:
+```
+Bash("node ~/.claude/hud/shaman-timing.mjs --end-stage 5 success || true")
+Bash("node ~/.claude/hud/shaman-timing.mjs --start-stage 6 \"The Sealing\" haiku || true")
+```
 
 Update run state:
 ```
@@ -1513,7 +1572,15 @@ Compile the run log:
 Write(".shaman-pipe/logs/{run-id}.json", runLogJson)
 ```
 
-**Step 5: Clear run state**
+**Step 5: Record timing and print summary**
+
+```
+Bash("node ~/.claude/hud/shaman-timing.mjs --end-stage 6 success || true")
+Bash("node ~/.claude/hud/shaman-timing.mjs --complete || true")
+Bash("node ~/.claude/hud/shaman-summary.mjs --run-id {run-id} || true")
+```
+
+**Step 6: Clear run state**
 
 ```
 Bash("rm -f .shaman-pipe/state/run-state.json")
@@ -2253,6 +2320,9 @@ Step 4: Delete sub-branches and feature branch:
           git branch -D feature/sp-{run-id}-{slug} 2>/dev/null || true
 Step 5: Release pool slot (set status back to "available" in pool.json)
 Step 6: Write partial run log to .shaman-pipe/logs/{run-id}.json
+Step 6b: Record timing and print summary:
+          Bash("node ~/.claude/hud/shaman-timing.mjs --cancel || true")
+          Bash("node ~/.claude/hud/shaman-summary.mjs --run-id {run-id} || true")
 Step 7: Clear run state:
           Bash("rm -f .shaman-pipe/state/run-state.json")
 Step 8: Remove sentinel:
