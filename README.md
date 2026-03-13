@@ -2,6 +2,8 @@
 
 > Light the pipe. One command. Seven stages. Committed code.
 
+*The pipe is also a pipeline. The shaman was informed. The shaman does not care.*
+
 A Claude Code skill that drives a 7-stage autonomous pipeline with Opus oversight at every architectural gate, parallel Sonnet agents implementing against Opus-authored contracts, and a self-correcting retry loop that classifies failures before escalating to you.
 
 ```bash
@@ -50,7 +52,7 @@ Each feature runs in its own git worktree at `.shaman-pipe/worktrees/{slot}/`. M
 
 ## State Management
 
-The Shaman Pipe is fully self-contained. All state lives under `.shaman-pipe/` in your project:
+The Shaman Pipe is fully self-contained. All state lives under `.shaman-pipe/` in your project (the directory is named after the pipe — the ceremonial one, and also the pipeline, yes, both):
 
 ```
 .shaman-pipe/
