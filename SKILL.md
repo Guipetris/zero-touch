@@ -86,6 +86,11 @@ Parse `{{ARGUMENTS}}` to determine invocation mode:
 - Skip Stage 0 Phase A and Phase B entirely
 - Proceed directly to Stage 1
 
+**Spec mode:** `/the-shaman-pipe --spec {path}`
+- Read the spec document at `{path}` via `Read("{path}")`
+- Set `"source": "brainstorm_spec"`, `"spec_path": "{path}"`
+- Proceed to Stage 0 in **spec-seeded mode** — the spec replaces cold discovery; Stage 0 becomes a targeted refinement loop (see Stage 0: Spec-Seeded Behaviour)
+
 **Resume mode:** If `.shaman-pipe/state/run-state.json` exists:
 - Read state via `Read(".shaman-pipe/state/run-state.json")`
 - Extract `run_id` and `stage` from state
@@ -95,6 +100,7 @@ Parse `{{ARGUMENTS}}` to determine invocation mode:
 **Flags:**
 - `--init` : Allow git init if no .git directory exists
 - `--ticket {id}` : Ticket-driven mode (skip Stage 0)
+- `--spec {path}` : Brainstorm spec mode (seed Stage 0 from doc)
 - `--resume {run-id}` : Explicit resume of a specific run
 
 ---
@@ -566,6 +572,41 @@ After Phase A translation and Phase B selection, write the complete `design.json
 ```
 Write(".shaman-pipe/state/{run-id}/design.json", designJson)
 ```
+
+---
+
+## Stage 0: Spec-Seeded Behaviour (`--spec` mode)
+
+When invoked with `--spec {path}`, Stage 0 replaces blank-slate discovery with a targeted refinement loop. The brainstorm spec is treated as prior work — already explored, already approved by the user — so Opus refines rather than discovers.
+
+### Step 1: Parse the spec
+
+Read the spec document and extract:
+- **Goal** — what the feature/change is meant to accomplish
+- **Constraints** — tech stack, scope limits, non-goals stated in the spec
+- **Acceptance criteria** — any success conditions or test cases mentioned
+- **Proposed approaches** — any design options or recommendations in the spec
+
+Assess each dimension on the same 0–100% clarity scale used in Phase A. A well-written brainstorm spec will typically land at 30–60% ambiguity overall (goal is clear, implementation details are not).
+
+### Step 2: Targeted refinement (Phase A condensed)
+
+Run a condensed Phase A using only the ambiguity dimensions that the spec left unresolved:
+- Skip any dimension already scored ≤ 20% ambiguous
+- Ask at most **3 targeted questions** total (vs. the normal 8-round ceiling)
+- Challenge agent fires once if any answer introduces a new unknown
+- Exit when overall ambiguity ≤ 20% or question budget is exhausted
+
+Summarise the spec to the user at the start:
+> "I've read the brainstorm spec at `{path}`. I have a clear picture of the goal and constraints. I need to clarify a few implementation details before we pick an approach."
+
+### Step 3: Approach selection (Phase B — unchanged)
+
+Run standard Phase B. If the spec already proposes approaches, surface them as the candidate set and add any Opus-generated alternatives. User selects; Opus authors contracts as normal.
+
+### Ambiguity score in design.json
+
+Set `"ambiguity_score"` to the final post-refinement value (not the spec's initial score), so the PR body and review stage reflect actual remaining uncertainty.
 
 ---
 

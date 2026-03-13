@@ -120,6 +120,7 @@ cp SKILL.md ~/.claude/skills/the-shaman-pipe/SKILL.md
 | Flag | Description |
 |---|---|
 | `--ticket {id}` | Fetch GitHub issue (`GH-142` or `142`) and skip Stage 0 |
+| `--spec {path}` | Seed Stage 0 from a brainstorm spec doc — refinement loop instead of cold discovery |
 | `--init` | Allow `git init` if the project has no repository |
 | `--resume {run-id}` | Explicitly resume a specific interrupted run |
 
