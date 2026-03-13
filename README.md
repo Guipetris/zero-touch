@@ -2,14 +2,34 @@
 
 > Light the pipe. One command. Seven stages. Committed code.
 
-*The pipe is also a pipeline. The shaman was informed. The shaman does not care.*
-
 A Claude Code skill that drives a 7-stage autonomous pipeline with Opus oversight at every architectural gate, parallel Sonnet agents implementing against Opus-authored contracts, and a self-correcting retry loop that classifies failures before escalating to you.
 
 ```bash
 /the-shaman-pipe "add stripe webhook handler"
 /the-shaman-pipe --ticket GH-142
 ```
+
+## The Ancient Wisdom
+
+*Seven stages. Revealed by Opus in a vision quest that involved reading your git history.*
+
+The shaman does not write code. The shaman describes what must exist, asks three clarifying questions with mathematical rigor, and selects an architectural approach from a curated list. Then the shaman steps back while Sonnet agents do the actual work.
+
+This is, historically speaking, the entire career path of a senior engineer — formalized into a YAML skill file.
+
+The smoke carries your feature through:
+
+- **Stage 0** — *The Clarity Ritual.* Opus interrogates your vague idea until ambiguity drops below 20%. It will ask uncomfortable questions. You will realize you did not know what you wanted.
+- **Stage 1** — *The Environment Reading.* Haiku checks if your working tree is clean. It is not.
+- **Stage 2** — *The Contract Ceremony.* Opus authors sacred JSON contracts. Sonnet agents must not deviate from them. An independent Critic reviews the contracts before implementation begins, because Opus does not trust itself.
+- **Stage 3** — *The Summoning.* Parallel Sonnet agents appear in isolated git worktrees, implement their unit against the contract, commit, and vanish. They are unaware of each other's existence. This is intentional.
+- **Stage 4** — *The Validation Rite.* Haiku runs your tests. If they fail, the correction chain begins its ancient cycle of classify → fix → retry → escalate.
+- **Stage 5** — *The Final Judgment.* Opus reviews blast radius, OWASP surface, and whether the code actually delivers what you described in Stage 0. It remembers everything you said.
+- **Stage 6** — *The Sealing.* Haiku creates the PR. The smoke clears. The pipe is spent.
+
+*You return to your terminal to find a pull request waiting. You did not write a single line of code. Whether this is enlightenment or delegation is left as an exercise for the reader.*
+
+---
 
 ## How It Works
 
@@ -52,7 +72,7 @@ Each feature runs in its own git worktree at `.shaman-pipe/worktrees/{slot}/`. M
 
 ## State Management
 
-The Shaman Pipe is fully self-contained. All state lives under `.shaman-pipe/` in your project (the directory is named after the pipe — the ceremonial one, and also the pipeline, yes, both):
+The Shaman Pipe is fully self-contained. All state lives under `.shaman-pipe/` in your project:
 
 ```
 .shaman-pipe/
