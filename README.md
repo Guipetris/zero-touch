@@ -2,7 +2,7 @@
 
 > A single command takes a feature from idea to committed code — fully automated.
 
-A Claude Code skill that chains a 7-stage autonomous pipeline with Opus oversight at every architectural gate, Sonnet agents implementing in parallel against Opus-authored contracts, and a self-correcting retry loop that classifies failures before escalating to you.
+A Claude Code skill that drives a 7-stage autonomous pipeline with Opus oversight at every architectural gate, parallel Sonnet agents implementing against Opus-authored contracts, and a self-correcting retry loop that classifies failures before escalating to you.
 
 ```bash
 /zero-touch "add stripe webhook handler"
@@ -12,7 +12,7 @@ A Claude Code skill that chains a 7-stage autonomous pipeline with Opus oversigh
 ## How It Works
 
 ```
-Stage 0  Design       Opus     Socratic interview → approach selection
+Stage 0  Design       Opus     Socratic clarity loop → approach selection
 Stage 1  Environment  Haiku    Git status, conflict scan, branch protection check
 Stage 2  Planning     Opus     Architecture → unit contracts per file/component
 Stage 3  Implement    Sonnet×N Parallel agents, each working against an Opus contract
@@ -21,7 +21,15 @@ Stage 5  Review       Opus     Security, blast radius, code quality gate
 Stage 6  Commit       Haiku    Conventional commit + PR or direct merge
 ```
 
-**You interact twice**: once in Stage 0 (what to build and which approach), and only again if a correction budget is exhausted and the pipeline needs guidance. Everything else is autonomous.
+**You interact twice**: once in Stage 0 (what to build and which approach), and only again if a correction budget is exhausted. Everything else is autonomous.
+
+## Stage 0: Design Intelligence
+
+Stage 0 is a two-phase design conversation — fully built-in, no external dependencies.
+
+**Phase A — Clarity loop**: Opus-driven Socratic questions targeting the weakest clarity dimension (goal, constraints, acceptance criteria, codebase context) until ambiguity drops below 20%. Mathematical scoring with challenge agents at rounds 4, 6, and 8 to surface hidden assumptions.
+
+**Phase B — Approach selection**: Opus proposes 2-3 architectural approaches with trade-offs. You pick one. Opus then authors per-unit contracts that Sonnet agents implement against.
 
 ## Self-Correcting Pipeline
 
@@ -34,45 +42,44 @@ Failures at any validation gate are classified before retrying:
 | `ARCH` | Contract violation | Opus revises contract → Sonnet retries |
 | `AMBIGUOUS` | Unclear failure | Opus arbitrates contract vs implementation |
 
-Per-unit budgets prevent infinite loops. When budgets exhaust, the pipeline surfaces a clear escalation prompt rather than silently degrading.
+Per-unit budgets prevent infinite loops. When budgets exhaust, the pipeline surfaces a clear escalation report rather than silently degrading.
 
 ## Git Worktree Isolation
 
 Each feature runs in its own git worktree at `.zero-touch/worktrees/{slot}/`. Multiple features can run simultaneously in separate terminal sessions without branch conflicts. Worktrees are cleaned up automatically after commit or cancellation.
 
-## Stage 0: Design Intelligence
+## State Management
 
-Stage 0 is a two-phase design conversation powered by Opus:
+Zero-Touch is fully self-contained. All state lives under `.zero-touch/` in your project:
 
-**Phase A — Clarity loop**: Socratic questions targeting the weakest clarity dimension until ambiguity drops below 20% (mathematical scoring across goal, constraints, acceptance criteria).
+```
+.zero-touch/
+├── config.json                         # Project delivery config (PR vs direct merge)
+├── worktrees/
+│   ├── pool.json                       # Slot pool for concurrent features
+│   └── {slot}/                         # Git worktrees, one per feature
+└── state/
+    └── {run-id}/
+        ├── interview-state.json        # Stage 0 Phase A clarity loop progress
+        ├── interview-spec.md           # Crystallized feature spec
+        ├── design.json                 # Goals, constraints, chosen approach
+        ├── feature-plan.json           # Stage 2 unit decomposition
+        ├── contracts/{unit-id}.json    # Opus-authored per-unit contracts
+        ├── corrections.json            # Correction budget tracking
+        └── validation-report.json     # Stage 4 output for Stage 5 reference
+```
 
-**Phase B — Approach selection**: Opus proposes 2-3 architectural approaches with trade-offs. You pick one. Opus then authors per-unit contracts that Sonnet agents implement against.
-
-This replaces `deep-interview → ralplan → autopilot` chained manually — it's the same quality gates in a single command.
+No external tools, no MCP servers, no plugin dependencies. Only `git` and `gh` CLI required.
 
 ## Prerequisites
 
-1. **[oh-my-claudecode (OMC)](https://github.com/sgomez-dev/oh-my-claudecode)** — Zero-Touch uses OMC's state management (`state_write`/`state_read`) for stage tracking, `/cancel` support, and HUD integration.
-
-2. **Register the state mode** — add `'zero-touch'` to OMC's state mode list. In your OMC installation:
-
-   ```typescript
-   // ~/.claude/plugins/marketplaces/omc/src/tools/state-tools.ts
-   const EXTRA_STATE_ONLY_MODES = ['ralplan', 'omc-teams', 'deep-interview', 'zero-touch'] as const;
-   ```
-
-   Also update the compiled dist file at the same path but under `dist/`:
-   ```javascript
-   // dist/tools/state-tools.js
-   const EXTRA_STATE_ONLY_MODES = ['ralplan', 'omc-teams', 'deep-interview', 'zero-touch'];
-   ```
-
-3. **`gh` CLI authenticated** — required for PR creation and branch protection checks.
+1. **`git`** — project must be a git repository (or pass `--init`)
+2. **`gh` CLI authenticated** — for PR creation and branch protection checks
    ```bash
    gh auth status
    ```
 
-4. **Git repository** — the target project must be a git repo, or pass `--init` to create one.
+That's it.
 
 ## Installation
 
@@ -80,51 +87,44 @@ This replaces `deep-interview → ralplan → autopilot` chained manually — it
 # Via skills CLI
 npx skills add Guipetris/zero-touch
 
-# Or manually: copy SKILL.md into your Claude skills directory
+# Or manually
 cp SKILL.md ~/.claude/skills/zero-touch/SKILL.md
 ```
-
-## Configuration
-
-On first run, Zero-Touch asks two configuration questions and writes answers to `.zero-touch/config.json` at your project root:
-
-- **Delivery mode**: PR to target branch (recommended) or direct merge
-- **Target branch**: detected automatically (main/master), or specify
-
-Config is project-local and committed to `.gitignore` automatically.
 
 ## Flags
 
 | Flag | Description |
 |---|---|
-| `--ticket {id}` | Ticket-driven mode — fetches GitHub issue and skips Stage 0 entirely |
+| `--ticket {id}` | Fetch GitHub issue (`GH-142` or `142`) and skip Stage 0 |
 | `--init` | Allow `git init` if the project has no repository |
 | `--resume {run-id}` | Explicitly resume a specific interrupted run |
 
 ## Cancellation
 
+Create `.zero-touch/CANCEL` at any time to cancel the active pipeline:
+
 ```bash
-/oh-my-claudecode:cancel
+touch .zero-touch/CANCEL
 ```
 
-Cancels the active pipeline, releases the worktree slot, archives the branch, and clears OMC state.
+The pipeline checks for the sentinel at the start of each stage, releases the worktree slot, archives the branch, and cleans up state.
 
-## State Files
+## Configuration
 
-All runtime state lives under `.zero-touch/` at your project root:
+On first run, Zero-Touch asks two questions and writes answers to `.zero-touch/config.json`:
 
+- **Delivery mode**: PR to target branch (recommended) or direct merge
+- **Target branch**: auto-detected (main/master) or specify
+
+Config is project-local and added to `.gitignore` automatically.
+
+## Ticket-Driven Mode
+
+```bash
+/zero-touch --ticket GH-142
 ```
-.zero-touch/
-├── config.json                    # Project-level delivery config
-├── worktrees/                     # Git worktree pool
-│   └── {slot}/                    # One per concurrent feature
-│       └── agents/{unit-id}/      # Per-agent isolated worktrees
-└── state/
-    └── {run-id}/
-        ├── design.json            # Stage 0 output (goals, constraints, approach)
-        ├── feature-plan.json      # Stage 2 output (units + contracts)
-        └── corrections.json       # Correction budget tracking
-```
+
+Fetches the issue title, body, and labels via `gh issue view`, synthesizes `design.json` automatically, and skips Stage 0 entirely — straight to environment check and planning.
 
 ## License
 

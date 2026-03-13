@@ -36,7 +36,7 @@ Zero-Touch Pipeline takes a single command and autonomously produces committed c
 <Do_Not_Use_When>
 - User wants a single file fix or small change -- use executor or ralph
 - User wants to explore options or brainstorm -- use omc-plan
-- User wants only requirements gathering -- use deep-interview directly
+- User wants only requirements gathering with no implementation -- address the clarity loop directly without the full pipeline
 - User wants only a plan without execution -- use ralplan
 - User says "just do it" with a fully specified task -- use autopilot
 - Project has no git repository and user does not want one initialized
@@ -206,44 +206,234 @@ Write(".zero-touch/state/run-state.json", {
 
 ### Phase A: Socratic Clarity Loop
 
-Invoke the deep-interview skill to drive Socratic questioning:
+Zero-Touch implements Socratic questioning directly — no external skill required.
+
+#### Step 1: Detect Project Type
+
+Spawn a Haiku agent to inspect the codebase:
 
 ```
-Skill("deep-interview", "{feature description}")
+Agent(
+  subagent_type="general-purpose",
+  model="haiku",
+  prompt="Check if this directory has existing source code, package files (package.json, pyproject.toml, go.mod, Cargo.toml, pom.xml), or git history. Return JSON: { type: 'brownfield'|'greenfield', evidence: string, relevant_areas: string[] }"
+)
 ```
 
-The deep-interview skill handles:
-- Brownfield vs greenfield detection
-- Dimension scoring (Goal Clarity, Constraint Clarity, Success Criteria, Context Clarity)
-- Ambiguity computation with weighted formula
-- Challenge agent activation (Contrarian at round 4+, Simplifier at round 6+, Ontologist at round 8+ if ambiguity > 30%)
-- Interview persistence and resume
+- **Brownfield**: source files exist AND the feature description references modifying or extending existing functionality
+- **Greenfield**: new project or standalone new feature with no existing code context
 
-**Ambiguity formula (applied by deep-interview, verified here):**
+For brownfield projects, also spawn a targeted explore to map relevant codebase areas:
 
-Greenfield:
 ```
-ambiguity = 1 - (goal * 0.40 + constraints * 0.30 + criteria * 0.30)
-```
-
-Brownfield:
-```
-ambiguity = 1 - (goal * 0.35 + constraints * 0.25 + criteria * 0.25 + context * 0.15)
+Agent(
+  subagent_type="general-purpose",
+  model="haiku",
+  prompt="Map the codebase areas most relevant to: '{feature description}'. Return file paths, key modules, and existing patterns (auth, data access, routing, etc.) that the feature will touch or extend."
+)
 ```
 
-**Hard gate:** Ambiguity must reach <= 20% before Phase B begins. If deep-interview completes with ambiguity > 20%, do NOT proceed. Inform the user:
+Store the result as `codebase_context` for use in question generation.
 
-> Design clarity is insufficient (ambiguity: {score}%). The pipeline requires <= 20% ambiguity to proceed. Continue the interview or provide more detail.
+#### Step 2: Initialize Interview State
 
-**Translation layer:** After deep-interview completes, read its spec output from `.omc/specs/deep-interview-{slug}.md` and copy it to `.zero-touch/state/{run-id}/interview-spec.md` for self-contained reference. Extract and map to `design.json` fields:
+Write interview state to `.zero-touch/state/{run-id}/interview-state.json`:
 
-| deep-interview spec field | design.json field |
+```json
+{
+  "interview_id": "{run-id}",
+  "type": "greenfield|brownfield",
+  "initial_idea": "{feature description}",
+  "rounds": [],
+  "current_ambiguity": 1.0,
+  "threshold": 0.2,
+  "codebase_context": null,
+  "challenge_modes_used": []
+}
+```
+
+#### Step 3: Announce to User
+
+Present to the user:
+
+```
+Starting design clarity interview. I'll ask targeted questions to understand your feature before building anything. Ambiguity score updates after each answer — we proceed once it drops below 20%.
+
+Feature: "{feature description}"
+Project type: {greenfield|brownfield}
+Current ambiguity: 100%
+```
+
+#### Step 4: Interview Loop
+
+Repeat until `current_ambiguity <= 0.20` OR user exits early OR round 20 reached:
+
+**4a. Generate the next question.**
+
+Identify the dimension with the LOWEST clarity score (start all at 0.0). Build the question targeting that dimension:
+
+| Dimension | Question Style | Weight (greenfield) | Weight (brownfield) |
+|---|---|---|---|
+| Goal Clarity | "What exactly happens when...?" | 40% | 35% |
+| Constraint Clarity | "What are the boundaries?" | 30% | 25% |
+| Success Criteria | "How do we know it works?" | 30% | 25% |
+| Context Clarity | "How does this fit the existing system?" | N/A | 15% |
+
+Questions must expose assumptions, not gather feature lists. One question per round — never batch.
+
+**Challenge agent injections** (applied to question generation, each used at most once):
+
+- **Round 4+** (Contrarian): "Challenge the user's core assumption. Ask 'What if the opposite were true?' or 'What if this constraint doesn't actually exist?'"
+- **Round 6+** (Simplifier): "Probe whether complexity can be removed. Ask 'What's the simplest version that would still be valuable?'"
+- **Round 8+, ambiguity > 30%** (Ontologist): "The ambiguity is still high. Ask 'What IS this, really?' or 'If you described this in one sentence to a colleague, what would you say?'"
+
+Track which modes have been used in `challenge_modes_used` to prevent repetition.
+
+**For brownfield questions**: consult `codebase_context` first. Never ask the user about something the codebase already reveals.
+
+**4b. Ask the question via AskUserQuestion.**
+
+```
+Round {n} | Targeting: {weakest_dimension} | Ambiguity: {score}%
+
+{question}
+```
+
+Include contextually relevant options plus a free-text option.
+
+**4c. Score ambiguity using Opus (temperature 0.1 for consistency).**
+
+Prompt Opus:
+
+```
+Score clarity for this {greenfield|brownfield} feature specification across dimensions (0.0 = no clarity, 1.0 = crystal clear):
+
+Feature: {initial_idea}
+
+Interview transcript:
+{all rounds Q&A so far}
+
+Score each dimension:
+1. Goal Clarity: Is the primary objective unambiguous? Can you state it in one sentence without qualifiers?
+2. Constraint Clarity: Are boundaries, limitations, and non-goals clear?
+3. Success Criteria: Could you write a passing test right now? Are acceptance criteria concrete and testable?
+{4. Context Clarity [brownfield only]: Do we understand the existing system well enough to modify it safely?}
+
+For each dimension return:
+- score: float 0.0-1.0
+- justification: one sentence
+- gap: what's still unclear (omit if score >= 0.9)
+
+Return JSON only.
+```
+
+Calculate ambiguity:
+
+```
+Greenfield: ambiguity = 1 - (goal × 0.40 + constraints × 0.30 + criteria × 0.30)
+Brownfield: ambiguity = 1 - (goal × 0.35 + constraints × 0.25 + criteria × 0.25 + context × 0.15)
+```
+
+**4d. Report progress to user.**
+
+```
+Round {n} complete.
+
+| Dimension        | Score | Weight | Weighted | Gap           |
+|------------------|-------|--------|----------|---------------|
+| Goal             | {s}   | {w}%   | {s×w}    | {gap or "—"}  |
+| Constraints      | {s}   | {w}%   | {s×w}    | {gap or "—"}  |
+| Success Criteria | {s}   | {w}%   | {s×w}    | {gap or "—"}  |
+| Context          | {s}   | {w}%   | {s×w}    | {gap or "—"}  |
+| **Ambiguity**    |       |        | **{score}%** |           |
+
+{score <= 20 ? "Clarity threshold met. Proceeding to approach design." : "Next question targets: {weakest_dimension}"}
+```
+
+**4e. Update interview state.**
+
+Append the round to `interview-state.json`:
+
+```json
+{
+  "round": {n},
+  "question": "{question text}",
+  "answer": "{user answer}",
+  "scores": { "goal": {s}, "constraints": {s}, "criteria": {s}, "context": {s} },
+  "ambiguity": {score},
+  "challenge_mode": "{mode or null}"
+}
+```
+
+Write updated state: `Write(".zero-touch/state/{run-id}/interview-state.json", updatedState)`
+
+**4f. Check soft limits.**
+
+- **Round 3+**: If user says "enough", "let's go", "build it", "proceed" — allow early exit.
+- **Round 10**: Show soft warning: "10 rounds complete. Ambiguity: {score}%. Continue interviewing or proceed with current clarity?"
+- **Round 20**: Hard cap. Proceed with current clarity. Note the risk in design.json.
+
+**Early exit warning (if ambiguity > 20%):**
+
+```
+Current ambiguity is {score}% (threshold: 20%). Areas still unclear:
+  {list weakest dimensions and their gaps}
+
+Proceeding may require rework. Continue anyway?
+```
+Options: `["Yes, proceed to approach design", "Ask 2-3 more questions", "Cancel"]`
+
+#### Step 5: Crystallize Interview Spec
+
+When ambiguity ≤ 20% (or early exit accepted), use Opus to generate the spec and write to `.zero-touch/state/{run-id}/interview-spec.md`:
+
+```markdown
+# Interview Spec: {feature-slug}
+
+## Metadata
+- Run ID: {run-id}
+- Rounds: {count}
+- Final Ambiguity: {score}%
+- Type: {greenfield|brownfield}
+- Status: {PASSED | EARLY_EXIT}
+
+## Goal
+{crystal-clear goal statement}
+
+## Constraints
+- {constraint 1}
+- {constraint 2}
+
+## Non-Goals
+- {excluded scope 1}
+
+## Acceptance Criteria
+- [ ] {testable criterion 1}
+- [ ] {testable criterion 2}
+
+## Assumptions Exposed
+| Assumption | Challenge Applied | Resolution |
+|---|---|---|
+| {assumption} | {challenge mode} | {decision} |
+
+## Technical Context
+{brownfield: codebase findings}
+{greenfield: technology constraints}
+```
+
+Write: `Write(".zero-touch/state/{run-id}/interview-spec.md", specContent)`
+
+#### Step 6: Translation Layer
+
+Extract fields from the interview spec and map to `design.json` fields:
+
+| Interview spec section | design.json field |
 |---|---|
-| Goal section | `goals[]` (split into discrete goal statements) |
+| Goal section | `goals[]` (split into discrete statements) |
 | Constraints section | `constraints[]` |
 | Acceptance Criteria section | `acceptance_criteria[]` |
 | Technical Context / codebase findings | `scope[]` (directories referenced) |
-| Non-Goals section | informs `restricted[]` (directories explicitly excluded) |
+| Non-Goals section | `restricted[]` (directories explicitly excluded) |
 | Final Ambiguity Score | `ambiguity_score` |
 
 **Resume checkpoint:** After Phase A translation completes and before Phase B begins, write a partial `design.json` so that a crash or interruption during approach selection can be detected and resumed:
@@ -1017,6 +1207,11 @@ Produce a structured validation report:
 }
 ```
 
+Persist the report for Stage 5 to reference on resume:
+```
+Write(".zero-touch/state/{run-id}/validation-report.json", validationReport)
+```
+
 Any failure enters the Adaptive Correction System. Success gates Stage 5.
 
 ---
@@ -1216,7 +1411,7 @@ Bash("git branch --list 'feature/{run-id}/*' | xargs -r git branch -D")
 Bash("git branch -D feature/zt-{run-id}-{slug} 2>/dev/null; git push origin --delete feature/zt-{run-id}-{slug} 2>/dev/null || true")
 ```
 
-**Step 3: Release pool slot**
+**Step 4: Release pool slot**
 
 Read pool.json, update the claimed slot:
 ```json
@@ -1387,12 +1582,12 @@ Step 1: Opus reads original contract + failure + implementation
 Track budgets in `.zero-touch/state/{run-id}/corrections.json`:
 ```json
 {
-  "corrections": {
+  "units": {
     "unit-webhook-handler": {
-      "SYNTAX": { "attempts": 1, "max": 2 },
-      "LOGIC": { "attempts": 0, "max": 2 },
-      "ARCH": { "attempts": 0, "max": 1 },
-      "AMBIGUOUS": { "attempts": 0, "max": 1 }
+      "SYNTAX":    { "attempts": 1, "max": 2, "history": ["lint error: unexpected token"] },
+      "LOGIC":     { "attempts": 0, "max": 2, "history": [] },
+      "ARCH":      { "attempts": 0, "max": 1, "history": [] },
+      "AMBIGUOUS": { "attempts": 0, "max": 1, "history": [] }
     }
   },
   "global_total": 1,
@@ -1516,7 +1711,7 @@ The rename operation is atomic on POSIX filesystems -- either it fully replaces 
 
 ### Heartbeat Protocol
 
-Active runs update `last_heartbeat` every 5 minutes during Stage 3:
+Active runs update `last_heartbeat` every 5 minutes during all stages that hold a slot (Stages 1-6):
 
 ```
 Read(".zero-touch/worktrees/pool.json")
@@ -1552,7 +1747,7 @@ No hard timeout on queuing. The pipeline waits indefinitely for a slot. The user
 - `TaskCreate(subagent_type="general-purpose", model="sonnet", ...)` -- spawn parallel Sonnet agents in Stage 3
 - `SendMessage(task_id, ...)` -- communicate with spawned agents if needed
 - `TaskGet(task_id)` / `TaskList()` -- monitor agent completion in Stage 3
-- `Skill("deep-interview", "{description}")` -- invoke Socratic clarity loop in Stage 0 Phase A
+- `Agent(subagent_type="general-purpose", model="haiku", ...)` -- brownfield/greenfield detection and codebase mapping in Stage 0 Phase A
 - `AskUserQuestion` -- Stage 0 Phase B approach selection and config questions
 - `Bash(...)` -- git commands (worktree, branch, merge, status), package manager, gh CLI, file operations
 - `Read(...)` -- read design.json, feature-plan.json, contracts, pool.json, config.json, implemented files
@@ -1586,7 +1781,7 @@ Greenfield invocation:
 ```
 User: /zero-touch "add REST API for user preferences with CRUD operations"
 
-Stage 0: deep-interview runs 6 rounds, ambiguity drops to 16%
+Stage 0: Phase A clarity loop runs 6 rounds, ambiguity drops to 16%
          Opus proposes: (1) Express + Prisma, (2) Fastify + Drizzle, (3) Hono + raw SQL
          User selects Approach 1
          design.json written with 3 goals, 2 constraints, 4 acceptance criteria
@@ -1652,7 +1847,7 @@ Why good: Pool isolation works. Scope overlap checked but no conflict.
 <Bad>
 Proceeding with high ambiguity:
 ```
-Stage 0: deep-interview runs 3 rounds, ambiguity at 45%
+Stage 0: Phase A clarity loop runs 3 rounds, ambiguity at 45%
 Pipeline proceeds to Stage 1 anyway
 ```
 Why bad: Hard gate at 20% ambiguity was bypassed. This will cause contract failures downstream because the goals and acceptance criteria are unclear.
@@ -1680,7 +1875,7 @@ Why bad: LOGIC budget is 2 per unit. After attempt 1, Opus should diagnose. Afte
 </Examples>
 
 <Escalation_And_Stop_Conditions>
-- **Ambiguity > 20% after deep-interview:** Do not proceed. Continue interview or ask user for more detail.
+- **Ambiguity > 20% after Stage 0 Phase A:** Do not proceed. Continue the clarity loop or ask user for more detail.
 - **Stage 1 environment check fails (error, not warning):** Stop immediately with clear error message.
 - **Critic pass fails 3 times:** Stop at Stage 2. Contracts are fundamentally flawed.
 - **Per-unit correction budget exhausted:** Produce escalation report. Halt pipeline for that unit.
@@ -1695,7 +1890,7 @@ Why bad: LOGIC budget is 2 per unit. After attempt 1, Opus should diagnose. Afte
 - [ ] Run state written to .zero-touch/state/run-state.json at Stage 0 start
 - [ ] Namespace `.zero-touch/` bootstrapped (idempotent)
 - [ ] `.gitignore` updated with `.zero-touch/worktrees/` and `.zero-touch/state/`
-- [ ] Stage 0: deep-interview completed with ambiguity <= 20%
+- [ ] Stage 0: Phase A clarity loop completed with ambiguity <= 20%
 - [ ] Stage 0: design.json written with all required fields
 - [ ] Stage 0: User selected architectural approach via AskUserQuestion
 - [ ] Stage 1: All 7 environment checks passed
@@ -1745,7 +1940,7 @@ If interrupted at any stage, re-invoke `/zero-touch` (no arguments needed). The 
 
 | Interrupted At | Resume Behavior |
 |---|---|
-| Stage 0 Phase A | deep-interview has its own resume via its state. Re-invoke to continue. |
+| Stage 0 Phase A | `interview-state.json` exists in `.zero-touch/state/{run-id}/`. Re-invoke `/zero-touch` to continue from the last completed round. |
 | Stage 0 Phase B | design.json exists but no chosen_approach. Re-present approach selection. |
 | Stage 1 | Re-run all 7 checks (idempotent). |
 | Stage 2 | If feature-plan.json exists, check for contracts. Resume Critic pass if contracts exist. |
@@ -1870,8 +2065,9 @@ Step 2: Remove agent sub-worktrees for current stage (if Stage 3):
           git worktree list --porcelain | grep '.zero-touch/worktrees/{slot-id}/agents' | awk '/worktree/{print $2}' | xargs -r -I{} git worktree remove {} --force
 Step 3: Remove feature worktree:
           git worktree remove .zero-touch/worktrees/{slot-id} --force
-Step 4: Delete feature branch:
-          git branch -D zt/{feature-slug}/{run-id}
+Step 4: Delete sub-branches and feature branch:
+          git branch --list 'feature/{run-id}/*' | xargs -r git branch -D
+          git branch -D feature/zt-{run-id}-{slug} 2>/dev/null || true
 Step 5: Release pool slot (set status back to "available" in pool.json)
 Step 6: Write partial run log to .zero-touch/logs/{run-id}.json
 Step 7: Clear run state:
