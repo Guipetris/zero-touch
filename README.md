@@ -2,6 +2,8 @@
 
 > Light the pipe. One command. Seven stages. Committed code.
 
+![The Shaman Pipe](docs/banner.jpeg)
+
 A Claude Code skill that drives a 7-stage autonomous pipeline with Opus oversight at every architectural gate, parallel Sonnet agents implementing against Opus-authored contracts, and a self-correcting retry loop that classifies failures before escalating to you.
 
 ```bash
