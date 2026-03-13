@@ -982,6 +982,25 @@ Write(".shaman-pipe/state/run-state.json", {
 })
 ```
 
+### Agent Progress Tracking
+
+Initialize agent progress (visible in HUD statusline):
+```
+Write(".shaman-pipe/state/{run-id}/agent-status.json", {
+  "phase": "implementing",
+  "total": {number of units from feature-plan.json},
+  "parallelism": {parallelism from feature-plan.json},
+  "agents": [
+    { "id": "{unit-id}", "status": "pending" }
+    // ... one entry per unit from feature-plan.json
+  ],
+  "merge_progress": 0
+})
+```
+
+Report to user:
+> "Stage 3: The Summoning -- {total} agents, parallelism {P}"
+
 ### Branch Topology
 
 ```
@@ -1062,6 +1081,9 @@ RESTRICTED FILES (do NOT read, modify, or import from):
 
 Units with unresolved dependencies must wait for their dependencies to complete and merge first.
 
+**Agent status updates:** Before spawning each batch, update `agent-status.json` -- set batch agents to `"running"` and write the full file. Report to user which agents are starting:
+> "Batch {N}: Starting agents {unit-id-1}, {unit-id-2}..."
+
 ### Inline Contract Gate (per agent, Sonnet validates)
 
 After each agent reports completion, validate its output against the contract:
@@ -1084,12 +1106,14 @@ Bash("cd .shaman-pipe/worktrees/{slot-id}/agents/{unit-id} && git diff HEAD --na
 ```
 Verify no file in `contract.restricted_from` appears in the diff.
 
-If all checks pass, record agent timing completion:
+If all checks pass, record agent timing completion and update status:
 ```
 Bash("node ~/.claude/hud/shaman-timing.mjs --end-agent 3 {unit-id} || true")
 ```
+Update `agent-status.json`: set agent {unit-id} status to `"completed"` and write the full file.
+Report: > "Agent {unit-id} completed -- contract gate passed"
 
-If any check fails: enter the Adaptive Correction System (see below) for this unit.
+If any check fails: update agent status to `"correcting"` in `agent-status.json`, then enter the Adaptive Correction System (see below) for this unit. After correction succeeds, update status to `"completed"`.
 
 ### Heartbeat
 
@@ -1109,7 +1133,16 @@ A slot with no heartbeat update for 10 minutes is considered stale and may be re
 
 Once ALL agents report done and pass their contract gates, a dedicated merge sequence executes in `merge_order` from the feature plan.
 
+Update agent status for merge phase:
+```
+Read(".shaman-pipe/state/{run-id}/agent-status.json")
+```
+Set `"phase": "merging"`, `"merge_progress": 0`. Write back.
+Report: > "All {N} agents completed. Starting merge protocol."
+
 **For each unit in merge_order:**
+
+After each successful unit merge, increment `merge_progress` in `agent-status.json` and write back.
 
 **Step 1: Merge sub-branch into feature branch**
 ```
@@ -1580,13 +1613,38 @@ Bash("node ~/.claude/hud/shaman-timing.mjs --complete || true")
 Bash("node ~/.claude/hud/shaman-summary.mjs --run-id {run-id} || true")
 ```
 
-**Step 6: Clear run state**
+**Step 6: Print pipeline completion report**
+
+Read the run log, agent status, and model timing data. Print a structured completion report to the user:
+
+```
+═══════════════════════════════════════════════════
+  The Shaman Pipe · Complete
+═══════════════════════════════════════════════════
+
+  Feature:      {feature_slug}
+  Run ID:       {run-id}
+  Delivery:     {PR created at {url} | Merged to {target_branch}}
+
+  Agents:       {N} units ({parallelism} parallel)
+                {list each unit-id and its contract gate result}
+
+  Corrections:  {total corrections} ({by_type breakdown if any})
+  Review:       {APPROVE | CONDITIONAL | REJECT}
+
+  Model usage shown in the timing table above (from shaman-summary.mjs).
+  Run archived to .shaman-pipe/logs/{run-id}.json
+═══════════════════════════════════════════════════
+```
+
+Read `.shaman-pipe/state/{run-id}/agent-status.json` for the agent details. Include each agent's unit-id, status, and whether corrections were needed. This gives the user a complete picture of what happened during the pipeline.
+
+**Step 7: Clear run state**
 
 ```
 Bash("rm -f .shaman-pipe/state/run-state.json")
+Bash("rm -f .shaman-pipe/state/{run-id}/agent-status.json")
 ```
-
-> "The Shaman Pipe complete. {PR created at {url} | Merged to {target_branch}}. Run archived to .shaman-pipe/logs/{run-id}.json."
 
 ---
 
