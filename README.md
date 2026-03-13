@@ -1,6 +1,6 @@
-# zero-touch
+# the-shaman-pipe
 
-> A single command takes a feature from idea to committed code — fully automated.
+> Light the pipe. One command. Seven stages. Committed code.
 
 A Claude Code skill that drives a 7-stage autonomous pipeline with Opus oversight at every architectural gate, parallel Sonnet agents implementing against Opus-authored contracts, and a self-correcting retry loop that classifies failures before escalating to you.
 
@@ -85,7 +85,7 @@ That's it.
 
 ```bash
 # Via skills CLI
-npx skills add Guipetris/zero-touch
+npx skills add Guipetris/the-shaman-pipe
 
 # Or manually
 cp SKILL.md ~/.claude/skills/zero-touch/SKILL.md
