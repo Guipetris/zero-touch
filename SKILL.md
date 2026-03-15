@@ -1,8 +1,8 @@
 ---
 name: the-shaman-pipe
 description: >
-  Single-command pipeline from idea to committed code. Runs a 7-stage fully autonomous workflow:
-  Opus-driven design (Socratic clarity interview + approach selection), Opus planning, parallel
+  Single-command pipeline from idea to committed code. Runs an 8-stage fully autonomous workflow:
+  collaborative brainstorming design, Opus-driven design refinement, Opus planning, parallel
   Sonnet implementation against Opus-authored contracts, Haiku validation, Opus security review,
   and Haiku commit — with git worktree isolation and a self-correcting retry loop that classifies
   failures before escalating. Use when the user says "the-shaman-pipe", "shaman pipe", "tsp",
@@ -2384,22 +2384,19 @@ The Shaman Pipe manages its own state under `.shaman-pipe/state/run-state.json`.
 
 ## Ticket-Driven Mode
 
-`/the-shaman-pipe --ticket GH-142` fetches the issue and synthesizes `design.json` automatically:
+`/the-shaman-pipe --ticket GH-142` fetches the issue and seeds brainstorming with ticket context:
 
 ```
 Bash("gh issue view 142 --json title,body,labels,assignees")
 ```
 
-Map ticket fields to design.json:
-- `title` -> primary goal
-- `body` -> goals, constraints, acceptance criteria (parsed from markdown checkboxes)
-- `labels` -> scope hints (e.g., label "payments" -> scope ["src/payments/"])
+The ticket data is presented to the brainstorming pre-stage as seed context. Brainstorming validates the ticket's requirements, identifies gaps, and produces a full spec through its collaborative design flow (clarifying questions, approaches, spec doc, review loop, user gate).
 
 Set `"source": "github"` and `"ticket_id": "GH-142"`.
 
-Skip Phase A (Socratic loop) and Phase B (approach selection) entirely. Opus still runs the Challenge-the-Brief gate in Stage 2 to validate the ticket's requirements are sufficient.
+After brainstorming completes, Stage 0 runs in spec-seeded mode to score clarity, ask up to 3 targeted refinement questions, and extract `design.json`. Opus still runs the Challenge-the-Brief gate in Stage 2 to validate requirements are sufficient.
 
-If the ticket lacks acceptance criteria, Opus generates them and presents to user for confirmation before proceeding.
+If the ticket lacks acceptance criteria, brainstorming will surface this gap during its clarifying questions phase.
 
 ## Worktree Lifecycle
 
