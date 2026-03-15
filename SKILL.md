@@ -47,12 +47,14 @@ The existing `deep-interview -> ralplan -> autopilot` pipeline chains three inde
 </Why_This_Exists>
 
 <Execution_Policy>
-- Seven stages execute sequentially: 0 (Design) -> 1 (Environment) -> 2 (Planning) -> 3 (Implementation) -> 4 (Validation) -> 5 (Review) -> 6 (Commit)
+- Eight stages execute sequentially: Brainstorming (pre-stage) -> 0 (Design Refinement) -> 1 (Environment) -> 2 (Planning) -> 3 (Implementation) -> 4 (Validation) -> 5 (Review) -> 6 (Commit)
+- Brainstorming ALWAYS runs first — for bare descriptions, --spec, and --ticket invocations alike. It produces a committed spec doc that feeds Stage 0.
+- Stage 0 always runs in spec-seeded mode (condensed 3-question refinement), since brainstorming guarantees a spec exists.
 - Each stage must pass its gate before the next begins
 - Failures at any gate enter the adaptive correction chain before re-attempting or escalating
-- The only required human touchpoints are Stage 0 (design conversation) and escalation gates when correction budgets are exhausted
+- The only required human touchpoints are Brainstorming (collaborative design dialogue), Stage 0 (targeted refinement questions), and escalation gates when correction budgets are exhausted
 - Optional checkpoint stops between stages can be enabled via `config.json.checkpoint_mode`; when active, the pipeline pauses at each stage boundary for user review before proceeding
-- Model routing: Opus (Stages 0, 2, 5), Sonnet (Stage 3), Haiku (Stages 1, 4, 6)
+- Model routing: Opus (Brainstorming, Stage 0, 2, 5), Sonnet (Stage 3), Haiku (Stages 1, 4, 6)
 - Run state is written to .shaman-pipe/state/run-state.json on every stage transition
 - Cancel at any time by creating `.shaman-pipe/CANCEL` (e.g. `touch .shaman-pipe/CANCEL`); worktree slot is released, branch archived, state cleared
 </Execution_Policy>
@@ -73,23 +75,27 @@ No other external dependencies. The Shaman Pipe manages its own state under .sha
 
 ## Invocation
 
-Parse `{{ARGUMENTS}}` to determine invocation mode:
+Parse `{{ARGUMENTS}}` to determine invocation mode. **All modes route through brainstorming first.**
 
 **Interactive mode:** `/the-shaman-pipe "feature description"`
-- Proceeds to Stage 0 Phase A (Socratic clarity loop)
+- Proceeds to Brainstorming pre-stage with the feature description as seed
+- Brainstorming explores, clarifies, designs, writes spec, review loop, user gate
+- Spec feeds into Stage 0 (condensed refinement)
 
 **Ticket mode:** `/the-shaman-pipe --ticket {id}`
 - Strip any `GH-` or `gh-` prefix from `{id}` before calling the API (e.g. `GH-142` → `142`)
 - Fetch ticket via `gh issue view {id} --json title,body,labels`
-- Synthesize `design.json` automatically from ticket title, body, and acceptance criteria
 - Set `"source": "github"`, `"ticket_id": "{id}"`
-- Skip Stage 0 Phase A and Phase B entirely
-- Proceed directly to Stage 1
+- Proceeds to Brainstorming pre-stage with the ticket title, body, and labels as seed context
+- Brainstorming validates/refines the ticket requirements, writes spec, review loop, user gate
+- Spec feeds into Stage 0 (condensed refinement)
 
 **Spec mode:** `/the-shaman-pipe --spec {path}`
 - Read the spec document at `{path}` via `Read("{path}")`
 - Set `"source": "brainstorm_spec"`, `"spec_path": "{path}"`
-- Proceed to Stage 0 in **spec-seeded mode** — the spec replaces cold discovery; Stage 0 becomes a targeted refinement loop (see Stage 0: Spec-Seeded Behaviour)
+- Proceeds to Brainstorming pre-stage with the spec content as seed context
+- Brainstorming validates the existing spec, fills gaps, review loop, user gate
+- Spec feeds into Stage 0 (condensed refinement)
 
 **Resume mode:** If `.shaman-pipe/state/run-state.json` exists:
 - Read state via `Read(".shaman-pipe/state/run-state.json")`
@@ -100,8 +106,8 @@ Parse `{{ARGUMENTS}}` to determine invocation mode:
 
 **Flags:**
 - `--init` : Allow git init if no .git directory exists
-- `--ticket {id}` : Ticket-driven mode (skip Stage 0)
-- `--spec {path}` : Brainstorm spec mode (seed Stage 0 from doc)
+- `--ticket {id}` : Ticket-driven mode (ticket seeds brainstorming)
+- `--spec {path}` : Spec-driven mode (spec seeds brainstorming)
 - `--resume {run-id}` : Explicit resume of a specific run
 
 ---
@@ -174,12 +180,87 @@ Only `.shaman-pipe/worktrees/` and `.shaman-pipe/state/` are excluded. `config.j
 
 ---
 
-## Stage 0 -- Design Intelligence (Opus)
+## Pre-Stage: Brainstorming (Opus)
 
 **Model:** Opus
-**Input:** User's feature description or ticket data
+**Input:** Feature description, ticket data, or existing spec (depending on invocation mode)
+**Output:** Committed spec document at `docs/superpowers/specs/YYYY-MM-DD-{topic}-design.md`
+**Gate:** Spec must pass automated review loop AND user approval
+
+Brainstorming always runs before Stage 0. It replaces the cold-start Socratic interview with the `/brainstorming` skill's collaborative design process, which produces a higher-quality spec through natural dialogue, scope decomposition, and automated review.
+
+### Invoke the Brainstorming Skill
+
+Invoke `/brainstorming` via the `Skill` tool, passing context based on invocation mode:
+
+**Interactive mode:** Invoke brainstorming with the feature description. Brainstorming explores the codebase, asks one question at a time, proposes 2-3 approaches with a recommendation, presents the design section-by-section, writes a spec doc, runs the spec review loop, and waits for user approval.
+
+**Ticket mode:** Before invoking brainstorming, present the fetched ticket context:
+```
+I'm starting the design phase for this GitHub ticket:
+
+Title: {ticket.title}
+Labels: {ticket.labels}
+
+{ticket.body}
+
+Let me run the brainstorming process to validate and refine these requirements into a proper spec.
+```
+Then invoke brainstorming. The ticket content gives brainstorming a head start — it will validate assumptions, identify gaps, and refine into a full spec rather than starting from scratch.
+
+**Spec mode:** Before invoking brainstorming, present the existing spec:
+```
+I'm reviewing this existing spec to validate and refine it:
+
+{spec content}
+
+Let me run the brainstorming process to check for gaps and ensure this is ready for implementation.
+```
+Then invoke brainstorming. The spec seeds the dialogue — brainstorming validates rather than discovers, focusing on gaps and unstated assumptions.
+
+### Brainstorming Produces
+
+The brainstorming skill handles its own full flow:
+1. Project context exploration
+2. Clarifying questions (one at a time, scope decomposition if needed)
+3. 2-3 approaches with trade-offs and recommendation
+4. Design presented section-by-section with user approval
+5. Spec document written to `docs/superpowers/specs/YYYY-MM-DD-{topic}-design.md` and committed
+6. Automated spec review loop (up to 5 iterations)
+7. User review gate — user approves the written spec before proceeding
+
+### After Brainstorming Completes
+
+Record the spec path for Stage 0:
+```
+spec_path = "docs/superpowers/specs/YYYY-MM-DD-{topic}-design.md"
+```
+
+Update run state to transition to Stage 0:
+```
+Write(".shaman-pipe/state/run-state.json", {
+  "active": true,
+  "stage": 0,
+  "run_id": "{run-id}",
+  "phase": "spec-seeded",
+  "feature_slug": "{slug}",
+  "spec_path": "{spec_path}",
+  "started_at": "<ISO timestamp>"
+})
+```
+
+Proceed to Stage 0 in spec-seeded mode with the brainstorming output.
+
+---
+
+## Stage 0 -- Design Refinement (Opus)
+
+**Model:** Opus
+**Input:** Brainstorming spec document (always available — brainstorming pre-stage guarantees it)
 **Output:** `.shaman-pipe/state/{run-id}/design.json`
 **Gate:** Ambiguity score must be <= 20%
+
+> **Note:** Stage 0 always runs in spec-seeded mode. The brainstorming pre-stage guarantees a spec exists at `spec_path` before Stage 0 begins. The full Socratic interview (Phase A cold-start) is no longer used — brainstorming handles the exploratory design dialogue. Stage 0 performs targeted refinement: scoring the spec's clarity per dimension, asking at most 3 focused questions to fill gaps, then extracting the structured design.json for downstream stages.
 
 ### Generate Run ID
 
